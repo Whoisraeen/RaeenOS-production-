@@ -1,0 +1,192 @@
+{
+    "version": 4,
+    "configurations": [
+        {
+            "name": "RaeenOS-x86",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/kernel/include",
+                "${workspaceFolder}/userland/include",
+                "${workspaceFolder}/drivers",
+                "/usr/include",
+                "/usr/local/include"
+            ],
+            "defines": [
+                "_GNU_SOURCE",
+                "RAEENOS",
+                "KERNEL",
+                "__GNUC__=11",
+                "__GNUC_MINOR__=3",
+                "__i386__",
+                "__linux__",
+                "DEBUG"
+            ],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "c11",
+            "cppStandard": "c++11",
+            "intelliSenseMode": "linux-gcc-x86",
+            "compilerArgs": [
+                "-Wall",
+                "-Wextra",
+                "-Werror",
+                "-std=c11",
+                "-fno-builtin",
+                "-nostdlib",
+                "-ffreestanding",
+                "-fno-stack-protector",
+                "-fno-pic",
+                "-fno-pie",
+                "-m32",
+                "-march=i686",
+                "-mno-mmx",
+                "-mno-sse",
+                "-mno-sse2",
+                "-mno-sse3",
+                "-mno-3dnow"
+            ],
+            "browse": {
+                "path": [
+                    "${workspaceFolder}/kernel",
+                    "${workspaceFolder}/drivers",
+                    "${workspaceFolder}/userland",
+                    "${workspaceFolder}/pkg",
+                    "${workspaceFolder}/tests"
+                ],
+                "limitSymbolsToIncludedHeaders": true,
+                "databaseFilename": "${workspaceFolder}/.vscode/browse.vc.db"
+            }
+        },
+        {
+            "name": "RaeenOS-x86_64",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/kernel/include",
+                "${workspaceFolder}/userland/include",
+                "${workspaceFolder}/drivers",
+                "/usr/include",
+                "/usr/local/include"
+            ],
+            "defines": [
+                "_GNU_SOURCE",
+                "RAEENOS",
+                "KERNEL",
+                "__GNUC__=11",
+                "__GNUC_MINOR__=3",
+                "__x86_64__",
+                "__linux__",
+                "DEBUG"
+            ],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "c11",
+            "cppStandard": "c++11",
+            "intelliSenseMode": "linux-gcc-x64",
+            "compilerArgs": [
+                "-Wall",
+                "-Wextra",
+                "-Werror",
+                "-std=c11",
+                "-fno-builtin",
+                "-nostdlib",
+                "-ffreestanding",
+                "-fno-stack-protector",
+                "-fno-pic",
+                "-fno-pie",
+                "-m64",
+                "-march=x86-64",
+                "-mcmodel=kernel",
+                "-mno-mmx",
+                "-mno-sse",
+                "-mno-sse2",
+                "-mno-sse3",
+                "-mno-3dnow"
+            ],
+            "browse": {
+                "path": [
+                    "${workspaceFolder}/kernel",
+                    "${workspaceFolder}/drivers", 
+                    "${workspaceFolder}/userland",
+                    "${workspaceFolder}/pkg",
+                    "${workspaceFolder}/tests"
+                ],
+                "limitSymbolsToIncludedHeaders": true,
+                "databaseFilename": "${workspaceFolder}/.vscode/browse.vc.db"
+            }
+        },
+        {
+            "name": "RaeenOS-Userland",
+            "includePath": [
+                "${workspaceFolder}/userland/include",
+                "${workspaceFolder}/kernel/include",
+                "/usr/include",
+                "/usr/local/include"
+            ],
+            "defines": [
+                "_GNU_SOURCE",
+                "RAEENOS",
+                "USERLAND",
+                "__GNUC__=11",
+                "__GNUC_MINOR__=3",
+                "__i386__",
+                "__linux__"
+            ],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "c11",
+            "cppStandard": "c++11",
+            "intelliSenseMode": "linux-gcc-x86",
+            "compilerArgs": [
+                "-Wall",
+                "-Wextra",
+                "-std=c11",
+                "-m32"
+            ],
+            "browse": {
+                "path": [
+                    "${workspaceFolder}/userland",
+                    "${workspaceFolder}/kernel/include"
+                ],
+                "limitSymbolsToIncludedHeaders": true,
+                "databaseFilename": "${workspaceFolder}/.vscode/browse.vc.db"
+            }
+        },
+        {
+            "name": "RaeenOS-Tests",
+            "includePath": [
+                "${workspaceFolder}/tests",
+                "${workspaceFolder}/kernel/include",
+                "${workspaceFolder}/userland/include",
+                "${workspaceFolder}/drivers",
+                "/usr/include",
+                "/usr/local/include"
+            ],
+            "defines": [
+                "_GNU_SOURCE",
+                "RAEENOS",
+                "TESTING",
+                "__GNUC__=11",
+                "__GNUC_MINOR__=3",
+                "__i386__",
+                "__linux__",
+                "DEBUG"
+            ],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "c11",
+            "cppStandard": "c++11",
+            "intelliSenseMode": "linux-gcc-x86",
+            "compilerArgs": [
+                "-Wall",
+                "-Wextra",
+                "-std=c11"
+            ],
+            "browse": {
+                "path": [
+                    "${workspaceFolder}/tests",
+                    "${workspaceFolder}/kernel",
+                    "${workspaceFolder}/userland",
+                    "${workspaceFolder}/drivers"
+                ],
+                "limitSymbolsToIncludedHeaders": true,
+                "databaseFilename": "${workspaceFolder}/.vscode/browse.vc.db"
+            }
+        }
+    ]
+}

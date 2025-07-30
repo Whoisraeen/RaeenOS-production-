@@ -1,260 +1,173 @@
 # RaeenOS Code Ownership and Review Requirements
-# This file defines code ownership and mandatory reviewers for RaeenOS development
-# with 42 specialized agents contributing to different subsystems.
+# This file defines code ownership and mandatory reviewers for different parts of the codebase
+# Ensures that specialized agents review changes in their areas of expertise
 
-# Global fallback - all changes require review from lead agents
+# Global reviewers - always required for any changes
 * @lead-os-developer @code-quality-analyst @testing-qa-automation-lead
 
-# ===================================================================================
-# CORE KERNEL SYSTEMS
-# ===================================================================================
+# Kernel Core Architecture
+/kernel/kernel.c @kernel-architect @lead-os-developer
+/kernel/memory.c @kernel-architect @memory-manager
+/kernel/pmm.c @kernel-architect @memory-manager
+/kernel/paging.c @kernel-architect @memory-manager
+/kernel/process/ @kernel-architect @process-scheduler
+/kernel/syscall.c @kernel-architect @process-scheduler
+/kernel/include/ @kernel-architect @api-sdk-architect
 
-# Kernel Core and Memory Management
-/kernel/ @kernel-architect @code-quality-analyst
-/kernel/memory.* @kernel-architect @memory-manager @performance-optimization-analyst
-/kernel/pmm.* @kernel-architect @memory-manager
-/kernel/paging.* @kernel-architect @memory-manager @privacy-security-engineer
+# Critical System Interfaces
 /kernel/include/memory_interface.h @kernel-architect @memory-manager @api-sdk-architect
+/kernel/include/process_interface.h @kernel-architect @process-scheduler @api-sdk-architect
+/kernel/include/filesystem_interface.h @filesystem-engineer @api-sdk-architect
+/kernel/include/driver_framework.h @driver-integration-specialist @api-sdk-architect
+/kernel/include/syscall.h @kernel-architect @api-sdk-architect
+/kernel/include/hal_interface.h @hardware-compat-expert @api-sdk-architect
+/kernel/include/security_interface.h @privacy-security-engineer @api-sdk-architect
 
-# Process and Thread Management
-/kernel/process/ @kernel-architect @performance-optimization-analyst
-/kernel/syscall* @kernel-architect @privacy-security-engineer @api-sdk-architect
-/kernel/include/process_interface.h @kernel-architect @api-sdk-architect
+# Driver Framework and Hardware Support
+/drivers/ @driver-integration-specialist @hardware-compat-expert
+/kernel/driver.c @driver-integration-specialist @kernel-architect
+/drivers/pci/ @hardware-compat-expert @driver-integration-specialist
+/drivers/gpu/ @gaming-layer-engineer @hardware-compat-expert
+/drivers/audio/ @audio-subsystem-engineer @hardware-compat-expert
+/drivers/usb/ @hardware-compat-expert @driver-integration-specialist
+/drivers/network/ @network-architect @hardware-compat-expert
+/drivers/nvme/ @hardware-compat-expert @filesystem-engineer
 
-# Interrupt and Timer Systems
-/kernel/idt.* @kernel-architect @realtime-systems-engineer
-/kernel/pic.* @kernel-architect @hardware-compat-expert
-/kernel/timer.* @kernel-architect @realtime-systems-engineer
+# Memory Management
+/kernel/memory.h @memory-manager @kernel-architect
+/kernel/swap.c @memory-manager @performance-optimization-analyst
 
-# Boot and Initialization
-/boot/ @kernel-architect @installer-wizard @hardware-compat-expert
-/kernel/boot_entry.c @kernel-architect @installer-wizard
+# Process Management and Scheduling
+/kernel/process/ @process-scheduler @kernel-architect
+/kernel/ipc/ @process-scheduler @privacy-security-engineer
 
-# ===================================================================================
-# DRIVERS AND HARDWARE ABSTRACTION
-# ===================================================================================
+# Filesystem
+/kernel/fs/ @filesystem-engineer @privacy-security-engineer
+/kernel/fs/vfs.c @filesystem-engineer @kernel-architect
+/kernel/fs/permissions.c @filesystem-engineer @privacy-security-engineer
 
-# Driver Framework and Integration
-/drivers/ @driver-integration-specialist @hardware-compat-expert @code-quality-analyst
-/kernel/driver.* @driver-integration-specialist @kernel-architect
-/kernel/include/driver*.h @driver-integration-specialist @api-sdk-architect
+# Network Stack
+/kernel/net/ @network-architect @privacy-security-engineer
+/kernel/net/tcpip.c @network-architect @performance-optimization-analyst
+/kernel/net/firewall.c @network-architect @privacy-security-engineer
 
-# Graphics and Gaming
-/drivers/gpu/ @gaming-layer-engineer @driver-integration-specialist @performance-optimization-analyst
-/kernel/graphics* @gaming-layer-engineer @ux-wizard
-/kernel/vga.* @gaming-layer-engineer @ux-wizard
+# Security and Privacy
+/kernel/module_signing.c @privacy-security-engineer @kernel-architect
+/kernel/net/firewall.c @privacy-security-engineer @network-architect
 
-# Audio Subsystem
-/drivers/audio/ @audio-subsystem-engineer @driver-integration-specialist @creator-tools-specialist
-/kernel/include/audio*.h @audio-subsystem-engineer @api-sdk-architect
+# User Interface and Graphics
+/kernel/ui/ @ux-wizard @accessibility-champion
+/kernel/graphics.c @ux-wizard @gaming-layer-engineer
+/kernel/window.c @ux-wizard @multitasking-maestro
+/kernel/ui/accessibility.c @accessibility-champion @ux-wizard
+/kernel/ui/i18n.c @i18n-infrastructure-engineer @localization-expert
 
-# Network Drivers and Stack
-/drivers/network/ @network-architect @driver-integration-specialist @privacy-security-engineer
-/kernel/net/ @network-architect @privacy-security-engineer @cloud-integration-engineer
-
-# Storage and File Systems
-/drivers/ata/ @driver-integration-specialist @filesystem-engineer
-/drivers/nvme/ @driver-integration-specialist @filesystem-engineer @performance-optimization-analyst
-/kernel/fs/ @filesystem-engineer @privacy-security-engineer @backup-recovery-engineer
-
-# Input Devices
-/drivers/input/ @driver-integration-specialist @ux-wizard @accessibility-champion
-/kernel/keyboard.* @driver-integration-specialist @ux-wizard
-/kernel/mouse.* @driver-integration-specialist @ux-wizard
-
-# USB and PCI
-/drivers/usb/ @driver-integration-specialist @hardware-compat-expert
-/drivers/pci/ @driver-integration-specialist @hardware-compat-expert
-
-# Power Management and ACPI
-/drivers/acpi/ @energy-power-manager @hardware-compat-expert @kernel-architect
-/kernel/swap.* @energy-power-manager @filesystem-engineer
-
-# ===================================================================================
-# USER INTERFACE AND DESKTOP ENVIRONMENT
-# ===================================================================================
-
-# Window Management and Desktop
-/kernel/window.* @ux-wizard @multitasking-maestro @gaming-layer-engineer
-/kernel/ui/ @ux-wizard @accessibility-champion @brand-identity-guru
-
-# Theming and Visual Design
-/kernel/ui/theme.* @brand-identity-guru @ux-wizard
-/kernel/ui/widget.* @ux-wizard @accessibility-champion
-
-# Accessibility Features
-/kernel/ui/accessibility.* @accessibility-champion @ux-wizard @i18n-infrastructure-engineer
-
-# Internationalization
-/kernel/ui/i18n.* @i18n-infrastructure-engineer @localization-expert
-/kernel/ui/ime.* @i18n-infrastructure-engineer @ux-wizard
-
-# Notifications
-/kernel/ui/notification.* @notification-center-architect @ux-wizard @ai-orchestrator
-
-# Terminal and Shell Integration
-/kernel/ui/terminal.* @shell-cli-engineer @ux-wizard
-
-# ===================================================================================
-# USERLAND AND APPLICATIONS
-# ===================================================================================
-
-# Core Userland
-/userland/ @app-framework-engineer @code-quality-analyst
-/userland/libc.* @app-framework-engineer @kernel-architect @api-sdk-architect
-/userland/syscall.* @app-framework-engineer @kernel-architect
-
-# Shell and CLI
-/userland/shell/ @shell-cli-engineer @ai-orchestrator
-/userland/bin/ @shell-cli-engineer @app-framework-engineer
+# Desktop Environment and Shell
+/kernel/ui/taskbar.c @ux-wizard @shell-cli-engineer
+/kernel/ui/start_menu.c @ux-wizard @brand-identity-guru
+/kernel/ui/notification.c @notification-center-architect @ux-wizard
 
 # Package Management
-/pkg/ @package-manager-dev @app-store-architect @privacy-security-engineer
+/pkg/ @package-manager-dev @app-store-architect
+/userland/app_store.c @app-store-architect @package-manager-dev
 
-# App Store and Distribution
-/userland/app_store.* @app-store-architect @privacy-security-engineer @package-manager-dev
+# Userland Applications and Libraries
+/userland/ @app-framework-engineer @raeen-studio-lead
+/userland/libc.c @app-framework-engineer @kernel-architect
+/userland/raeenstudio/ @raeen-studio-lead @ai-orchestrator
+/userland/shell/ @shell-cli-engineer @ai-orchestrator
 
-# Raeen Studio Suite
-/userland/raeenstudio/ @raeen-studio-lead @ai-orchestrator @cloud-integration-engineer
-
-# AI and Automation Features
-/userland/*ai*.* @ai-orchestrator @privacy-security-engineer
-/userland/automation* @ai-orchestrator @shell-cli-engineer
-/userland/nlp.* @ai-orchestrator @i18n-infrastructure-engineer
-/userland/voice_recognition.* @ai-orchestrator @audio-subsystem-engineer
-
-# Development Tools
-/userland/debugger.* @api-sdk-architect @kernel-architect
-/userland/profiler.* @performance-optimization-analyst @api-sdk-architect
-/userland/sdk.* @api-sdk-architect @app-framework-engineer
-
-# ===================================================================================
-# SECURITY AND PRIVACY
-# ===================================================================================
-
-# Security Framework
-/kernel/*security* @privacy-security-engineer @kernel-architect
-/kernel/module_signing.* @privacy-security-engineer @system-update-engineer
-
-# Network Security
-/kernel/net/firewall.* @privacy-security-engineer @network-architect
-/kernel/net/ssh.* @privacy-security-engineer @network-architect
-
-# File System Security
-/kernel/fs/permissions.* @privacy-security-engineer @filesystem-engineer
-
-# ===================================================================================
-# VIRTUALIZATION AND COMPATIBILITY
-# ===================================================================================
-
-# Virtualization Infrastructure
-/kernel/vm/ @virtualization-architect @gaming-layer-engineer @privacy-security-engineer
-/userland/vm/ @virtualization-architect @app-framework-engineer
-
-# Cross-Platform Compatibility
-/userland/compat/ @app-framework-engineer @virtualization-architect @third-party-integration-architect
-
-# ===================================================================================
-# BUILD SYSTEM AND CI/CD
-# ===================================================================================
-
-# Build System
-/Makefile* @lead-os-developer @testing-qa-automation-lead @performance-optimization-analyst
-/.github/ @testing-qa-automation-lead @lead-os-developer @code-quality-analyst
-
-# GitHub Actions Workflows
-/.github/workflows/ @testing-qa-automation-lead @lead-os-developer
-
-# Testing Infrastructure
-/tests/ @testing-qa-automation-lead @code-quality-analyst
-/*test* @testing-qa-automation-lead @code-quality-analyst
-
-# Docker and Containers
-/Dockerfile* @installer-wizard @cloud-integration-engineer
-/docker* @installer-wizard @cloud-integration-engineer
-
-# ===================================================================================
-# DOCUMENTATION AND SPECIFICATIONS
-# ===================================================================================
-
-# Architecture and Design Documents
-/docs/SYSTEM_ARCHITECTURE.md @lead-os-developer @kernel-architect
-/docs/AGENT_COORDINATION_GUIDE.md @task-manager-agent @lead-os-developer
-/docs/MASTER_PROJECT_PLAN.md @task-manager-agent @lead-os-developer
-
-# Interface Documentation
-/docs/*interface* @api-sdk-architect @kernel-architect
-/kernel/include/ @api-sdk-architect @kernel-architect
-
-# Installation and Deployment
-/docs/*install* @installer-wizard @enterprise-deployment-specialist
-/docs/*deploy* @installer-wizard @enterprise-deployment-specialist
-
-# User Documentation
-/docs/user/ @ux-wizard @accessibility-champion @localization-expert
-README.md @lead-os-developer @brand-identity-guru
-
-# ===================================================================================
-# SPECIALIZED CONFIGURATIONS
-# ===================================================================================
-
-# Enterprise Features
-/enterprise/ @enterprise-deployment-specialist @privacy-security-engineer @compliance-certification-specialist
-
-# Mobile Integration
-/mobile/ @mobile-sync-integration-engineer @cloud-integration-engineer @ai-orchestrator
+# AI Integration
+/userland/nlp.c @ai-orchestrator @raeen-studio-lead
+/userland/automation_suggestions.c @ai-orchestrator @ux-wizard
+/userland/context_awareness.c @ai-orchestrator @privacy-security-engineer
 
 # Gaming and Performance
-/gaming/ @gaming-layer-engineer @performance-optimization-analyst @audio-subsystem-engineer
+/drivers/gpu/ @gaming-layer-engineer @performance-optimization-analyst
+/kernel/graphics.c @gaming-layer-engineer @ux-wizard
 
-# Creative Tools
-/creative/ @creator-tools-specialist @audio-subsystem-engineer @gaming-layer-engineer
+# Audio Subsystem
+/drivers/audio/ @audio-subsystem-engineer @creator-tools-specialist
+/kernel/ui/audio/ @audio-subsystem-engineer @ux-wizard
 
-# Monitoring and Telemetry
-/telemetry/ @data-telemetry-engineer @privacy-security-engineer @performance-optimization-analyst
+# Build System and Infrastructure
+/Makefile @lead-os-developer @testing-qa-automation-lead
+/Makefile.multi-platform @lead-os-developer @hardware-compat-expert @testing-qa-automation-lead
+/.github/workflows/ @testing-qa-automation-lead @lead-os-developer
 
-# ===================================================================================
-# CRITICAL FILES REQUIRING ADDITIONAL REVIEW
-# ===================================================================================
+# CI/CD and Testing
+/.github/ @testing-qa-automation-lead @lead-os-developer
+/tests/ @testing-qa-automation-lead @code-quality-analyst
+/.github/workflows/ci-main.yml @testing-qa-automation-lead @performance-optimization-analyst
+/.github/workflows/hardware-compatibility.yml @hardware-compat-expert @testing-qa-automation-lead
 
-# Critical kernel files require additional architecture review
-/kernel/kernel.c @kernel-architect @lead-os-developer @privacy-security-engineer
-/kernel/linker.ld @kernel-architect @lead-os-developer @hardware-compat-expert
+# Documentation
+/docs/ @lead-os-developer @localization-expert
+/README.md @lead-os-developer @brand-identity-guru
+/docs/SYSTEM_ARCHITECTURE.md @kernel-architect @lead-os-developer
+/docs/CI_CD_INFRASTRUCTURE_GUIDE.md @testing-qa-automation-lead @lead-os-developer
 
-# Security-critical files require security team review
-**/*security* @privacy-security-engineer @compliance-certification-specialist @lead-os-developer
-**/*crypto* @privacy-security-engineer @compliance-certification-specialist
-**/*auth* @privacy-security-engineer @enterprise-deployment-specialist
+# Bootloader and Low-Level
+/boot/ @kernel-architect @installer-wizard
+/kernel/boot_entry.c @kernel-architect @installer-wizard
 
-# Performance-critical files require performance review
-**/*perf* @performance-optimization-analyst @kernel-architect
-**/*fast* @performance-optimization-analyst @realtime-systems-engineer
-**/*cache* @performance-optimization-analyst @kernel-architect
+# Monitoring and Tools
+/tools/ @testing-qa-automation-lead @data-telemetry-engineer
+/tools/monitoring/ @data-telemetry-engineer @performance-optimization-analyst
+/tools/agent-coordination/ @task-manager-agent @testing-qa-automation-lead
 
-# Network-facing code requires security review
-**/*network* @network-architect @privacy-security-engineer
-**/*http* @network-architect @privacy-security-engineer @cloud-integration-engineer
-**/*tcp* @network-architect @privacy-security-engineer
+# Agent-Specific Review Requirements
+# These patterns ensure that changes to specific subsystems get expert review
 
-# ===================================================================================
-# AGENT COORDINATION RULES
-# ===================================================================================
+# Virtualization and Compatibility
+/kernel/vm/ @virtualization-architect @privacy-security-engineer
+/userland/compat/ @virtualization-architect @app-framework-engineer
 
-# Files affecting multiple agents require cross-agent review
-/kernel/include/raeenos_interfaces.h @kernel-architect @api-sdk-architect @lead-os-developer @privacy-security-engineer
+# Mobile and Cloud Sync
+/userland/sync/ @mobile-sync-integration-engineer @cloud-integration-engineer
+/kernel/sync/ @mobile-sync-integration-engineer @privacy-security-engineer
 
-# HAL changes require hardware compatibility review
-/kernel/include/hal_interface.h @hardware-compat-expert @driver-integration-specialist @kernel-architect
+# Internationalization and Localization
+/kernel/ui/i18n.c @i18n-infrastructure-engineer @localization-expert
+/userland/i18n/ @i18n-infrastructure-engineer @localization-expert
 
-# Any changes to agent coordination documents
-/docs/AGENT_* @task-manager-agent @lead-os-developer
-/.github/pull_request_template.md @task-manager-agent @code-quality-analyst @lead-os-developer
-/.github/CODEOWNERS @task-manager-agent @lead-os-developer
+# Performance Critical Paths
+/kernel/memory.c @performance-optimization-analyst @memory-manager
+/kernel/process/switch.asm @performance-optimization-analyst @process-scheduler
+/drivers/gpu/ @performance-optimization-analyst @gaming-layer-engineer
 
-# ===================================================================================
-# EMERGENCY OVERRIDE
-# ===================================================================================
+# Enterprise and Deployment
+/tools/deployment/ @enterprise-deployment-specialist @installer-wizard
+/docs/enterprise/ @enterprise-deployment-specialist @compliance-certification-specialist
 
-# Critical security fixes can be approved by security team lead
-# This should only be used in emergency situations
-# /emergency-security-fix/ @privacy-security-engineer @lead-os-developer
+# Real-time Systems
+/kernel/timer.c @realtime-systems-engineer @performance-optimization-analyst
+/drivers/audio/ @realtime-systems-engineer @audio-subsystem-engineer
+
+# Special Review Requirements
+# Files that require additional scrutiny
+
+# Security-Critical Files (require security review)
+/kernel/module_signing.c @privacy-security-engineer @compliance-certification-specialist
+/kernel/net/firewall.c @privacy-security-engineer @network-architect
+/kernel/fs/permissions.c @privacy-security-engineer @filesystem-engineer
+
+# Performance-Critical Files (require performance review)  
+/kernel/memory.c @performance-optimization-analyst @memory-manager
+/kernel/process/switch.asm @performance-optimization-analyst @process-scheduler
+/drivers/gpu/gpu.c @performance-optimization-analyst @gaming-layer-engineer
+
+# API Stability (require API design review)
+/kernel/include/syscall.h @api-sdk-architect @kernel-architect
+/kernel/include/*_interface.h @api-sdk-architect @lead-os-developer
+
+# Hardware Compatibility (require hardware testing)
+/drivers/ @hardware-compat-expert @testing-qa-automation-lead
+
+# Accessibility (require accessibility review)
+/kernel/ui/accessibility.c @accessibility-champion @compliance-certification-specialist
+/userland/ui/ @accessibility-champion @ux-wizard
+
+# Internationalization (require i18n review)
+/kernel/ui/i18n.c @i18n-infrastructure-engineer @localization-expert
+/userland/i18n/ @i18n-infrastructure-engineer @localization-expert

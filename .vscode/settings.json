@@ -1,0 +1,398 @@
+{
+    "// RaeenOS Visual Studio Code Settings": "",
+    
+    "// Editor Configuration": "",
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true,
+    "editor.detectIndentation": false,
+    "editor.rulers": [100],
+    "editor.wordWrap": "wordWrapColumn",
+    "editor.wordWrapColumn": 100,
+    "editor.trimAutoWhitespace": true,
+    "editor.renderWhitespace": "trailing",
+    
+    "// Files Configuration": "",
+    "files.encoding": "utf8",
+    "files.eol": "\n",
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": true,
+    "files.trimTrailingWhitespace": true,
+    
+    "// Files to exclude from search and explorer": "",
+    "files.exclude": {
+        "build/**": true,
+        "**/*.o": true,
+        "**/*.a": true,
+        "**/*.so": true,
+        "**/*.elf": true,
+        "**/*.bin": true,
+        "**/cscope.*": true,
+        "**/tags": true,
+        "**/.DS_Store": true
+    },
+    
+    "// Search Configuration": "",
+    "search.exclude": {
+        "build/**": true,
+        "docs/html/**": true,
+        "**/*.min.js": true,
+        "**/node_modules/**": true,
+        "**/bower_components/**": true
+    },
+    
+    "// C/C++ Configuration": "",
+    "C_Cpp.default.cStandard": "c11",
+    "C_Cpp.default.cppStandard": "c++11",
+    "C_Cpp.default.compilerPath": "/usr/bin/gcc",
+    "C_Cpp.default.intelliSenseMode": "linux-gcc-x86",
+    "C_Cpp.default.includePath": [
+        "${workspaceFolder}/kernel/include",
+        "${workspaceFolder}/userland/include",
+        "${workspaceFolder}/drivers",
+        "/usr/include",
+        "/usr/local/include"
+    ],
+    "C_Cpp.default.defines": [
+        "_GNU_SOURCE",
+        "RAEENOS",
+        "__GNUC__",
+        "__linux__"
+    ],
+    "C_Cpp.default.compilerArgs": [
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-std=c11",
+        "-fno-builtin",
+        "-nostdlib",
+        "-ffreestanding"
+    ],
+    "C_Cpp.clang_format_path": "/usr/bin/clang-format",
+    "C_Cpp.clang_format_style": "file",
+    "C_Cpp.clang_format_fallbackStyle": "LLVM",
+    
+    "// Code Formatting": "",
+    "[c]": {
+        "editor.defaultFormatter": "ms-vscode.cpptools",
+        "editor.formatOnSave": true,
+        "editor.formatOnType": true
+    },
+    "[cpp]": {
+        "editor.defaultFormatter": "ms-vscode.cpptools",
+        "editor.formatOnSave": true,
+        "editor.formatOnType": true
+    },
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": true
+        }
+    },
+    "[markdown]": {
+        "editor.wordWrap": "wordWrapColumn",
+        "editor.wordWrapColumn": 80,
+        "files.trimTrailingWhitespace": false
+    },
+    "[makefile]": {
+        "editor.insertSpaces": false,
+        "editor.detectIndentation": false
+    },
+    "[yaml]": {
+        "editor.tabSize": 2
+    },
+    "[json]": {
+        "editor.tabSize": 2
+    },
+    
+    "// Git Configuration": "",
+    "git.ignoreLimitWarning": true,
+    "git.autofetch": true,
+    "git.confirmSync": false,
+    "git.enableSmartCommit": true,
+    "git.suggestSmartCommit": false,
+    
+    "// Terminal Configuration": "",
+    "terminal.integrated.shell.linux": "/bin/bash",
+    "terminal.integrated.cwd": "${workspaceFolder}",
+    
+    "// Python Configuration": "",
+    "python.defaultInterpreterPath": "/usr/bin/python3",
+    "python.linting.enabled": true,
+    "python.linting.flake8Enabled": true,
+    "python.linting.pylintEnabled": false,
+    "python.linting.flake8Args": [
+        "--max-line-length=88",
+        "--extend-ignore=E203,W503"
+    ],
+    "python.formatting.provider": "black",
+    "python.formatting.blackArgs": [
+        "--line-length=88"
+    ],
+    "python.sortImports.args": [
+        "--profile=black"
+    ],
+    
+    "// Extension-specific settings": "",
+    
+    "// Todo Tree Configuration": "",
+    "todo-tree.general.tags": [
+        "TODO",
+        "FIXME",
+        "XXX",
+        "HACK",
+        "NOTE",
+        "BUG",
+        "OPTIMIZE"
+    ],
+    "todo-tree.highlights.defaultHighlight": {
+        "icon": "alert",
+        "type": "tag",
+        "foreground": "red",
+        "background": "white",
+        "opacity": 50,
+        "iconColour": "red"
+    },
+    "todo-tree.highlights.customHighlight": {
+        "TODO": {
+            "icon": "check",
+            "foreground": "black",
+            "iconColour": "yellow",
+            "gutterIcon": true
+        },
+        "FIXME": {
+            "icon": "alert",
+            "foreground": "white",
+            "background": "red",
+            "iconColour": "red",
+            "gutterIcon": true
+        },
+        "XXX": {
+            "icon": "x",
+            "foreground": "white",
+            "background": "orange",
+            "iconColour": "orange",
+            "gutterIcon": true
+        },
+        "HACK": {
+            "icon": "flame",
+            "foreground": "white",
+            "background": "purple",
+            "iconColour": "purple",
+            "gutterIcon": true
+        },
+        "NOTE": {
+            "icon": "note",
+            "foreground": "black",
+            "background": "blue",
+            "iconColour": "blue"
+        },
+        "BUG": {
+            "icon": "bug",
+            "foreground": "white",
+            "background": "red",
+            "iconColour": "red",
+            "gutterIcon": true
+        },
+        "OPTIMIZE": {
+            "icon": "rocket",
+            "foreground": "white",
+            "background": "green",
+            "iconColour": "green"
+        }
+    },
+    
+    "// Spell Checker Configuration": "",
+    "cSpell.words": [
+        "raeenos",
+        "kmalloc",
+        "kfree",
+        "syscall",
+        "ioctl",
+        "mmap",
+        "mutex",
+        "semaphore",
+        "spinlock",
+        "tasklet",
+        "workqueue",
+        "irqsave",
+        "irqrestore",
+        "memset",
+        "memcpy",
+        "strlen",
+        "strcpy",
+        "strcmp",
+        "printf",
+        "sprintf",
+        "snprintf",
+        "ifdef",
+        "ifndef",
+        "endif",
+        "pragma",
+        "inline",
+        "typeof",
+        "sizeof",
+        "offsetof",
+        "container",
+        "struct",
+        "union",
+        "enum",
+        "typedef",
+        "const",
+        "volatile",
+        "static",
+        "extern",
+        "register",
+        "auto",
+        "goto",
+        "switch",
+        "case",
+        "default",
+        "break",
+        "continue",
+        "return",
+        "while",
+        "for",
+        "do",
+        "if",
+        "else",
+        "elif",
+        "endif"
+    ],
+    "cSpell.enableFiletypes": [
+        "c",
+        "cpp",
+        "h",
+        "hpp"
+    ],
+    
+    "// Git Lens Configuration": "",
+    "gitlens.codeLens.enabled": true,
+    "gitlens.hovers.enabled": true,
+    "gitlens.blame.highlight.enabled": false,
+    "gitlens.currentLine.enabled": false,
+    
+    "// Better Comments Configuration": "",
+    "better-comments.tags": [
+        {
+            "tag": "!",
+            "color": "#FF2D00",
+            "strikethrough": false,
+            "underline": false,
+            "backgroundColor": "transparent",
+            "bold": false,
+            "italic": false
+        },
+        {
+            "tag": "?",
+            "color": "#3498DB",
+            "strikethrough": false,
+            "underline": false,
+            "backgroundColor": "transparent",
+            "bold": false,
+            "italic": false
+        },
+        {
+            "tag": "//",
+            "color": "#474747",
+            "strikethrough": true,
+            "underline": false,
+            "backgroundColor": "transparent",
+            "bold": false,
+            "italic": false
+        },
+        {
+            "tag": "todo",
+            "color": "#FF8C00",
+            "strikethrough": false,
+            "underline": false,
+            "backgroundColor": "transparent",
+            "bold": false,
+            "italic": false
+        },
+        {
+            "tag": "*",
+            "color": "#98C379",
+            "strikethrough": false,
+            "underline": false,
+            "backgroundColor": "transparent",
+            "bold": false,
+            "italic": false
+        }
+    ],
+    
+    "// Error Lens Configuration": "",
+    "errorLens.enabled": true,
+    "errorLens.enabledDiagnosticLevels": [
+        "error",
+        "warning",
+        "info"
+    ],
+    
+    "// Bracket Pair Colorizer Configuration": "",
+    "bracket-pair-colorizer-2.colors": [
+        "#FFD700",
+        "#DA70D6",
+        "#179fff"
+    ],
+    "bracket-pair-colorizer-2.unmatchedScopeColor": "#FF0000",
+    "bracket-pair-colorizer-2.forceUniqueOpeningColor": false,
+    "bracket-pair-colorizer-2.forceIterationColorCycle": false,
+    "bracket-pair-colorizer-2.colorMode": "Consecutive",
+    "bracket-pair-colorizer-2.highlightActiveScope": false,
+    "bracket-pair-colorizer-2.activeScopeCSS": [
+        "borderStyle : solid",
+        "borderWidth : 1px",
+        "borderColor : {color}",
+        "opacity: 0.5"
+    ],
+    "bracket-pair-colorizer-2.showBracketsInGutter": true,
+    "bracket-pair-colorizer-2.showBracketsInRuler": true,
+    "bracket-pair-colorizer-2.showVerticalScopeLine": false,
+    "bracket-pair-colorizer-2.showHorizontalScopeLine": false,
+    
+    "// Code Runner Configuration": "",
+    "code-runner.executorMap": {
+        "c": "cd $dir && gcc -Wall -Wextra -std=c11 $fileName -o $fileNameWithoutExt && $dir$fileNameWithoutExt",
+        "cpp": "cd $dir && g++ -Wall -Wextra -std=c++11 $fileName -o $fileNameWithoutExt && $dir$fileNameWithoutExt",
+        "python": "python3 -u",
+        "shell": "bash"
+    },
+    "code-runner.runInTerminal": true,
+    "code-runner.saveFileBeforeRun": true,
+    "code-runner.clearPreviousOutput": true,
+    
+    "// IntelliSense Configuration": "",
+    "C_Cpp.intelliSenseEngine": "Default",
+    "C_Cpp.autocomplete": "Disabled",
+    "C_Cpp.errorSquiggles": "Enabled",
+    "C_Cpp.configurationWarnings": "Enabled",
+    
+    "// Build Configuration": "",
+    "cmake.configureOnOpen": false,
+    "cmake.buildOnOpen": false,
+    
+    "// Performance Configuration": "",
+    "C_Cpp.workspaceParsingPriority": "highest",
+    "C_Cpp.maxCachedProcesses": 8,
+    "C_Cpp.maxMemory": 4096,
+    
+    "// Problem Matchers": "",
+    "problemMatcher": {
+        "$gcc": {
+            "owner": "cpp",
+            "fileLocation": [
+                "relative",
+                "${workspaceFolder}"
+            ],
+            "pattern": {
+                "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                "file": 1,
+                "line": 2,
+                "column": 3,
+                "severity": 4,
+                "message": 5
+            }
+        }
+    }
+}

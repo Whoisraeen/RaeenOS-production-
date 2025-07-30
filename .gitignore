@@ -1,0 +1,318 @@
+# RaeenOS .gitignore
+
+# Build artifacts
+build/
+*.o
+*.obj
+*.a
+*.so
+*.dll
+*.dylib
+*.elf
+*.bin
+*.img
+*.iso
+
+# Compiled object files
+*.lo
+*.slo
+*.ko
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+*.ilk
+*.map
+*.exp
+
+# Kernel specific
+*.mod.c
+*.mod
+*.order
+*.symvers
+modules.builtin
+Module.markers
+
+# Assembly listings
+*.lst
+*.s
+*.S.tmp
+
+# Preprocessor output
+*.i
+*.ii
+
+# Dependency files
+*.d
+*.deps
+
+# Cache and temporary files
+.cache/
+*.tmp
+*.temp
+*~
+*.swp
+*.swo
+
+# IDE and editor files
+.vscode/browse.vc.db*
+.vscode/ipch/
+.vs/
+*.vcxproj*
+*.sln
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Tags and indexing
+tags
+TAGS
+cscope.*
+*.orig
+.ccls-cache/
+compile_commands.json
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Version control
+.git/
+.svn/
+.hg/
+.bzr/
+
+# Documentation generated files
+docs/html/
+docs/latex/
+docs/man/
+docs/rtf/
+docs/xml/
+*.chm
+*.docset
+
+# Test results
+test-results/
+*.gcda
+*.gcno
+*.gcov
+coverage.info
+coverage/
+lcov.info
+
+# Profiling
+gmon.out
+callgrind.out.*
+cachegrind.out.*
+massif.out.*
+*.prof
+
+# Static analysis
+cppcheck-report.xml
+*.scan
+.clang_complete
+
+# Packaging
+*.deb
+*.rpm
+*.pkg
+*.dmg
+*.msi
+
+# Logs
+*.log
+*.log.*
+
+# Core dumps
+core
+core.*
+vgcore.*
+
+# Memory dumps
+*.dump
+*.mdmp
+
+# Backup files
+*.bak
+*.backup
+
+# Archive files (unless specifically needed)
+*.zip
+*.tar
+*.gz
+*.bz2
+*.xz
+*.7z
+*.rar
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.pytest_cache/
+
+# Development tools
+.vagrant/
+.docker/
+docker-compose.override.yml
+
+# Configuration overrides
+config.local
+.env
+.env.local
+.env.*.local
+
+# Machine-specific files
+.ccache/
+.distcc/
+
+# Package managers
+node_modules/
+npm-debug.log*
+
+# Rust (for any Rust components)
+target/
+Cargo.lock
+
+# Go (for any Go components)
+vendor/
+
+# Java (for any Java components)
+*.class
+*.jar
+*.war
+*.ear
+
+# Specific to RaeenOS development
+
+# Bootloader binaries
+boot/*.bin
+boot/*.img
+
+# Kernel image
+kernel.bin
+kernel.elf
+raeenos.iso
+
+# User programs
+userland/bin/
+userland/*.bin
+
+# Driver modules
+drivers/**/*.ko
+
+# Generated headers
+include/generated/
+kernel/include/generated/
+
+# Build configuration
+.config
+.config.old
+.menuconfig.log
+
+# Cross-compilation tools
+toolchain/
+cross-*/
+
+# QEMU files
+*.qcow2
+*.vdi
+*.vmdk
+
+# Emulator logs
+qemu.log
+bochs.log
+
+# Hardware-specific builds
+build-*/
+
+# Test artifacts
+tests/build/
+tests/results/
+
+# Fuzzing results
+fuzz-results/
+crashes/
+hangs/
+
+# Security scan results
+security-scan-results/
+
+# Performance benchmark results
+benchmark-results/
+
+# Memory analysis
+valgrind-results/
+*.memcheck
+*.helgrind
+*.drd
+
+# Installation artifacts
+install/
+dist/
+
+# Custom build scripts output
+scripts/output/
+
+# Temporary mount points
+mnt/
+mount/
+
+# Network captures
+*.pcap
+
+# Reverse engineering
+*.ida
+*.idb64
+*.til
+*.nam
+
+# Exclude but keep structure
+!build/.gitkeep
+!docs/html/.gitkeep
+
+# Keep important empty directories
+!*/
+!*/.gitkeep
+
+# Exception: Include specific documentation files
+!docs/*.md
+!docs/**/*.md
+
+# Exception: Include example configuration files
+!*.example
+!*.template
+
+# Exception: Keep license files
+!LICENSE*
+!COPYING*
+
+# Exception: Keep important scripts
+!scripts/*.sh
+!scripts/*.py
+!tools/*.sh
+!tools/*.py

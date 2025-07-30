@@ -1,0 +1,104 @@
+{
+    "recommendations": [
+        // C/C++ Development
+        "ms-vscode.cpptools",
+        "ms-vscode.cpptools-extension-pack",
+        "ms-vscode.cpptools-themes",
+        
+        // Code Quality and Analysis
+        "ms-vscode.vscode-clangd",
+        "xaver.clang-format",
+        "notskm.clang-tidy",
+        "usernamehw.errorlens",
+        
+        // Git and Version Control
+        "eamodio.gitlens",
+        "mhutchie.git-graph",
+        "donjayamanne.githistory",
+        
+        // Code Formatting and Linting
+        "esbenp.prettier-vscode",
+        "ms-python.black-formatter",
+        "ms-python.flake8",
+        "ms-python.isort",
+        
+        // Python Development
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-python.debugpy",
+        
+        // Productivity
+        "gruntfuggly.todo-tree",
+        "aaron-bond.better-comments",
+        "streetsidesoftware.code-spell-checker",
+        "formulahendry.code-runner",
+        
+        // Markdown and Documentation
+        "yzhang.markdown-all-in-one",
+        "davidanson.vscode-markdownlint",
+        "shd101wyy.markdown-preview-enhanced",
+        
+        // Syntax Highlighting
+        "bbenoist.nix",
+        "timonwong.shellcheck",
+        "foxundermoon.shell-format",
+        
+        // Visualization and UI
+        "coenraads.bracket-pair-colorizer-2",
+        "oderwat.indent-rainbow",
+        "mechatroner.rainbow-csv",
+        
+        // Assembly Development
+        "13xforever.language-x86-64-assembly",
+        "whiteout2.x86-and-x86-64-assembly",
+        
+        // Build Tools
+        "ms-vscode.makefile-tools",
+        "ms-vscode.cmake-tools",
+        "twxs.cmake",
+        
+        // Debugging and Testing
+        "hbenl.vscode-test-explorer",
+        "ms-vscode.test-adapter-converter",
+        "webfreak.debug",
+        
+        // File Management
+        "alefragnani.project-manager",
+        "alefragnani.bookmarks",
+        "patbenatar.advanced-new-file",
+        
+        // Hex Editor (for binary files)
+        "ms-vscode.hexeditor",
+        
+        // Remote Development (for testing on different systems)
+        "ms-vscode-remote.remote-ssh",
+        "ms-vscode-remote.remote-containers",
+        
+        // Performance Analysis
+        "ms-vscode.vscode-serial-monitor",
+        
+        // Documentation
+        "cschlosser.doxdocgen",
+        "bbenoist.doxygen",
+        
+        // Configuration Files
+        "redhat.vscode-yaml",
+        "tamasfe.even-better-toml",
+        
+        // Diff and Merge Tools
+        "ryu1kn.partial-diff",
+        "alefragnani.separators",
+        
+        // Security
+        "ms-python.security",
+        "snyk-security.snyk-vulnerability-scanner"
+    ],
+    "unwantedRecommendations": [
+        // Avoid these extensions that might conflict or aren't needed
+        "ms-vscode.vscode-typescript-next",
+        "ms-vscode.vscode-json",
+        "bradlc.vscode-tailwindcss",
+        "ms-vscode.vscode-html-languageservice",
+        "ms-vscode.vscode-css-languageservice"
+    ]
+}

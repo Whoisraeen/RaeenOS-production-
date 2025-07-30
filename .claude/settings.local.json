@@ -7,7 +7,8 @@
       "Bash(rm:*)",
       "Bash(find:*)",
       "Bash(nasm:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(chmod:*)"
     ],
     "deny": []
   }

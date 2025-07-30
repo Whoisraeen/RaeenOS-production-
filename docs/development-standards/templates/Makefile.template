@@ -1,0 +1,360 @@
+# RaeenOS Module Makefile Template
+# Replace [MODULE_NAME] and other placeholders with actual values
+
+# Module configuration
+MODULE_NAME = [module_name]
+MODULE_VERSION = 1.0.0
+MODULE_DESCRIPTION = [Module description]
+
+# Build configuration
+BUILD_TYPE ?= debug
+CROSS_COMPILE ?= i686-elf-
+ARCH ?= x86
+
+# Directory configuration
+SRC_DIR = src
+INC_DIR = include
+BUILD_DIR = build
+OBJ_DIR = $(BUILD_DIR)/obj
+BIN_DIR = $(BUILD_DIR)/bin
+DOC_DIR = docs
+TEST_DIR = tests
+
+# Tool configuration
+CC = $(CROSS_COMPILE)gcc
+AS = $(CROSS_COMPILE)as
+LD = $(CROSS_COMPILE)ld
+AR = $(CROSS_COMPILE)ar
+OBJCOPY = $(CROSS_COMPILE)objcopy
+OBJDUMP = $(CROSS_COMPILE)objdump
+NM = $(CROSS_COMPILE)nm
+STRIP = $(CROSS_COMPILE)strip
+SIZE = $(CROSS_COMPILE)size
+
+# Static analysis tools
+CPPCHECK = cppcheck
+CLANG_FORMAT = clang-format
+CLANG_TIDY = clang-tidy
+VALGRIND = valgrind
+
+# Documentation tools
+DOXYGEN = doxygen
+
+# Host tools for cross-platform support
+ifeq ($(OS),Windows_NT)
+    MKDIR = mkdir
+    RM = del /q
+    RMDIR = rmdir /s /q
+    CP = copy /b
+    MV = move
+    ECHO = echo
+    CAT = type
+else
+    MKDIR = mkdir -p
+    RM = rm -f
+    RMDIR = rm -rf
+    CP = cp
+    MV = mv
+    ECHO = echo
+    CAT = cat
+endif
+
+# Compiler and linker flags
+CFLAGS_COMMON = -std=c11 -Wall -Wextra -Werror -pedantic
+CFLAGS_COMMON += -Wno-unused-parameter -Wno-unused-variable
+CFLAGS_COMMON += -fno-builtin -fno-stack-protector -nostdlib -nostdinc
+CFLAGS_COMMON += -ffreestanding -fno-pic -fno-pie
+CFLAGS_COMMON += -mno-mmx -mno-sse -mno-sse2 -mno-sse3 -mno-3dnow
+CFLAGS_COMMON += -I$(INC_DIR) -I../../kernel/include
+
+# Architecture-specific flags
+ifeq ($(ARCH),x86)
+    CFLAGS_COMMON += -m32 -march=i686
+    LDFLAGS += -m elf_i386
+    ASFLAGS += --32
+endif
+
+ifeq ($(ARCH),x86_64)
+    CFLAGS_COMMON += -m64 -march=x86-64 -mcmodel=kernel
+    LDFLAGS += -m elf_x86_64
+    ASFLAGS += --64
+endif
+
+# Build type specific flags
+ifeq ($(BUILD_TYPE),debug)
+    CFLAGS = $(CFLAGS_COMMON) -O0 -g3 -DDEBUG -DLOG_LEVEL=LOG_DEBUG
+    CFLAGS += -fno-omit-frame-pointer -fno-optimize-sibling-calls
+    STRIP_TARGET = false
+else ifeq ($(BUILD_TYPE),release)
+    CFLAGS = $(CFLAGS_COMMON) -O2 -DNDEBUG -DLOG_LEVEL=LOG_INFO
+    CFLAGS += -fomit-frame-pointer -ffunction-sections -fdata-sections
+    LDFLAGS += --gc-sections
+    STRIP_TARGET = true
+else ifeq ($(BUILD_TYPE),profile)
+    CFLAGS = $(CFLAGS_COMMON) -O2 -g -pg -DPROFILE -DLOG_LEVEL=LOG_INFO
+    LDFLAGS += -pg
+    STRIP_TARGET = false
+else
+    $(error Invalid BUILD_TYPE: $(BUILD_TYPE). Use debug, release, or profile)
+endif
+
+# Warning flags (comprehensive set)
+CFLAGS += -Wcast-align -Wcast-qual -Wdisabled-optimization
+CFLAGS += -Wformat=2 -Winit-self -Wlogical-op -Wmissing-declarations
+CFLAGS += -Wmissing-include-dirs -Wredundant-decls -Wshadow
+CFLAGS += -Wstrict-overflow=5 -Wswitch-default -Wundef
+CFLAGS += -Wno-variadic-macros -Wno-parentheses-equality
+
+# Security hardening flags
+CFLAGS += -D_FORTIFY_SOURCE=2 -fstack-clash-protection
+CFLAGS += -Wformat-security -Werror=format-security
+
+# Linker flags
+LDFLAGS += -nostdlib -static
+LDFLAGS += -T ../../kernel/linker.ld
+
+# Source files
+C_SOURCES = $(wildcard $(SRC_DIR)/*.c)
+ASM_SOURCES = $(wildcard $(SRC_DIR)/*.asm) $(wildcard $(SRC_DIR)/*.s)
+HEADER_FILES = $(wildcard $(INC_DIR)/*.h)
+
+# Object files
+C_OBJECTS = $(C_SOURCES:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
+ASM_OBJECTS = $(ASM_SOURCES:$(SRC_DIR)/%.asm=$(OBJ_DIR)/%.o)
+ASM_OBJECTS += $(ASM_SOURCES:$(SRC_DIR)/%.s=$(OBJ_DIR)/%.o)
+ALL_OBJECTS = $(C_OBJECTS) $(ASM_OBJECTS)
+
+# Test files
+TEST_SOURCES = $(wildcard $(TEST_DIR)/*.c)
+TEST_OBJECTS = $(TEST_SOURCES:$(TEST_DIR)/%.c=$(OBJ_DIR)/test_%.o)
+TEST_EXECUTABLES = $(TEST_SOURCES:$(TEST_DIR)/%.c=$(BIN_DIR)/%)
+
+# Output files
+LIBRARY = $(BIN_DIR)/lib$(MODULE_NAME).a
+SHARED_LIB = $(BIN_DIR)/lib$(MODULE_NAME).so
+MODULE_OBJ = $(BIN_DIR)/$(MODULE_NAME).o
+
+# Default target
+.PHONY: all
+all: directories $(LIBRARY)
+
+# Create necessary directories
+.PHONY: directories
+directories:
+	@$(MKDIR) $(BUILD_DIR) 2>/dev/null || true
+	@$(MKDIR) $(OBJ_DIR) 2>/dev/null || true
+	@$(MKDIR) $(BIN_DIR) 2>/dev/null || true
+
+# Compile C source files
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(HEADER_FILES)
+	@$(ECHO) "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+# Compile assembly files
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.asm
+	@$(ECHO) "AS $<"
+	@nasm -f elf32 $< -o $@
+
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.s
+	@$(ECHO) "AS $<"
+	@$(AS) $(ASFLAGS) $< -o $@
+
+# Create static library
+$(LIBRARY): $(ALL_OBJECTS)
+	@$(ECHO) "AR $@"
+	@$(AR) rcs $@ $^
+	@$(SIZE) $@
+
+# Create shared library (if needed)
+$(SHARED_LIB): $(ALL_OBJECTS)
+	@$(ECHO) "LD $@"
+	@$(LD) -shared -o $@ $^ $(LDFLAGS)
+
+# Create single object file (for kernel modules)
+$(MODULE_OBJ): $(ALL_OBJECTS)
+	@$(ECHO) "LD $@"
+	@$(LD) -r -o $@ $^
+
+# Build specific targets
+.PHONY: static shared module
+static: directories $(LIBRARY)
+shared: directories $(SHARED_LIB)
+module: directories $(MODULE_OBJ)
+
+# Test compilation
+$(OBJ_DIR)/test_%.o: $(TEST_DIR)/%.c $(HEADER_FILES)
+	@$(ECHO) "CC (test) $<"
+	@$(CC) $(CFLAGS) -I$(TEST_DIR) -DTESTING -c $< -o $@
+
+$(BIN_DIR)/%: $(OBJ_DIR)/test_%.o $(LIBRARY)
+	@$(ECHO) "LD (test) $@"
+	@$(CC) $(CFLAGS) $^ -o $@ -L$(BIN_DIR) -l$(MODULE_NAME)
+
+# Test targets
+.PHONY: tests
+tests: $(TEST_EXECUTABLES)
+
+.PHONY: check
+check: tests
+	@$(ECHO) "Running unit tests..."
+	@for test in $(TEST_EXECUTABLES); do \
+		$(ECHO) "Running $$test"; \
+		$$test || exit 1; \
+	done
+	@$(ECHO) "All tests passed!"
+
+# Code quality targets
+.PHONY: format
+format:
+	@$(ECHO) "Formatting code..."
+	@$(CLANG_FORMAT) -i $(C_SOURCES) $(HEADER_FILES) $(TEST_SOURCES)
+
+.PHONY: format-check
+format-check:
+	@$(ECHO) "Checking code format..."
+	@$(CLANG_FORMAT) --dry-run --Werror $(C_SOURCES) $(HEADER_FILES) $(TEST_SOURCES)
+
+.PHONY: lint
+lint:
+	@$(ECHO) "Running static analysis..."
+	@$(CPPCHECK) --enable=all --error-exitcode=1 \
+		--suppress=missingIncludeSystem \
+		--suppress=unusedFunction \
+		-I$(INC_DIR) $(SRC_DIR)
+
+.PHONY: tidy
+tidy:
+	@$(ECHO) "Running clang-tidy..."
+	@$(CLANG_TIDY) $(C_SOURCES) -- $(CFLAGS)
+
+# Memory checking (for host tests)
+.PHONY: memcheck
+memcheck: tests
+	@$(ECHO) "Running memory checks..."
+	@for test in $(TEST_EXECUTABLES); do \
+		$(ECHO) "Memory checking $$test"; \
+		$(VALGRIND) --leak-check=full --error-exitcode=1 $$test; \
+	done
+
+# Documentation generation
+.PHONY: docs
+docs:
+	@$(ECHO) "Generating documentation..."
+	@$(DOXYGEN) Doxyfile
+
+# Installation targets
+.PHONY: install
+install: $(LIBRARY)
+	@$(ECHO) "Installing $(MODULE_NAME)..."
+	@$(CP) $(LIBRARY) ../../lib/
+	@$(CP) $(INC_DIR)/*.h ../../include/
+
+.PHONY: uninstall
+uninstall:
+	@$(ECHO) "Uninstalling $(MODULE_NAME)..."
+	@$(RM) ../../lib/lib$(MODULE_NAME).a
+	@$(RM) ../../include/$(MODULE_NAME).h
+
+# Debugging and analysis targets
+.PHONY: disasm
+disasm: $(LIBRARY)
+	@$(ECHO) "Disassembling $(LIBRARY)..."
+	@$(OBJDUMP) -d $< > $(BUILD_DIR)/$(MODULE_NAME).disasm
+
+.PHONY: symbols
+symbols: $(LIBRARY)
+	@$(ECHO) "Extracting symbols from $(LIBRARY)..."
+	@$(NM) -n $< > $(BUILD_DIR)/$(MODULE_NAME).symbols
+
+.PHONY: size-analysis
+size-analysis: $(LIBRARY)
+	@$(ECHO) "Size analysis for $(LIBRARY):"
+	@$(SIZE) -A $<
+	@$(ECHO) "Per-object size breakdown:"
+	@$(SIZE) $(ALL_OBJECTS)
+
+# Dependency generation
+-include $(ALL_OBJECTS:.o=.d)
+
+$(OBJ_DIR)/%.d: $(SRC_DIR)/%.c
+	@$(CC) $(CFLAGS) -MM -MT $(@:.d=.o) $< > $@
+
+# Clean targets
+.PHONY: clean
+clean:
+	@$(ECHO) "Cleaning build artifacts..."
+	@$(RMDIR) $(BUILD_DIR) 2>/dev/null || true
+
+.PHONY: distclean
+distclean: clean
+	@$(ECHO) "Cleaning all generated files..."
+	@$(RMDIR) $(DOC_DIR)/html 2>/dev/null || true
+	@$(RM) tags cscope.* 2>/dev/null || true
+
+# Development convenience targets
+.PHONY: tags
+tags:
+	@$(ECHO) "Generating tags..."
+	@ctags -R $(SRC_DIR) $(INC_DIR) $(TEST_DIR)
+
+.PHONY: cscope
+cscope:
+	@$(ECHO) "Generating cscope database..."
+	@find $(SRC_DIR) $(INC_DIR) $(TEST_DIR) -name "*.c" -o -name "*.h" > cscope.files
+	@cscope -b -q -k
+
+# Information targets
+.PHONY: info
+info:
+	@$(ECHO) "Module: $(MODULE_NAME) v$(MODULE_VERSION)"
+	@$(ECHO) "Description: $(MODULE_DESCRIPTION)"
+	@$(ECHO) "Build Type: $(BUILD_TYPE)"
+	@$(ECHO) "Architecture: $(ARCH)"
+	@$(ECHO) "Cross Compile: $(CROSS_COMPILE)"
+	@$(ECHO) "Source Files: $(C_SOURCES) $(ASM_SOURCES)"
+	@$(ECHO) "Object Files: $(ALL_OBJECTS)"
+	@$(ECHO) "Output: $(LIBRARY)"
+
+.PHONY: help
+help:
+	@$(ECHO) "RaeenOS $(MODULE_NAME) Module Build System"
+	@$(ECHO) ""
+	@$(ECHO) "Available targets:"
+	@$(ECHO) "  all          - Build the module (default)"
+	@$(ECHO) "  static       - Build static library"
+	@$(ECHO) "  shared       - Build shared library"
+	@$(ECHO) "  module       - Build kernel module object"
+	@$(ECHO) "  tests        - Build unit tests"
+	@$(ECHO) "  check        - Run unit tests"
+	@$(ECHO) "  format       - Format source code"
+	@$(ECHO) "  format-check - Check code formatting"
+	@$(ECHO) "  lint         - Run static analysis"
+	@$(ECHO) "  tidy         - Run clang-tidy"
+	@$(ECHO) "  memcheck     - Run memory checking on tests"
+	@$(ECHO) "  docs         - Generate documentation"
+	@$(ECHO) "  install      - Install module"
+	@$(ECHO) "  uninstall    - Uninstall module"
+	@$(ECHO) "  disasm       - Generate disassembly"
+	@$(ECHO) "  symbols      - Extract symbol table"
+	@$(ECHO) "  size-analysis- Analyze binary size"
+	@$(ECHO) "  tags         - Generate ctags"
+	@$(ECHO) "  cscope       - Generate cscope database"
+	@$(ECHO) "  clean        - Remove build artifacts"
+	@$(ECHO) "  distclean    - Remove all generated files"
+	@$(ECHO) "  info         - Show build configuration"
+	@$(ECHO) "  help         - Show this help"
+	@$(ECHO) ""
+	@$(ECHO) "Build variables:"
+	@$(ECHO) "  BUILD_TYPE   - debug, release, or profile (default: debug)"
+	@$(ECHO) "  ARCH         - x86 or x86_64 (default: x86)"
+	@$(ECHO) "  CROSS_COMPILE- Cross-compiler prefix (default: i686-elf-)"
+	@$(ECHO) ""
+	@$(ECHO) "Examples:"
+	@$(ECHO) "  make BUILD_TYPE=release"
+	@$(ECHO) "  make ARCH=x86_64 CROSS_COMPILE=x86_64-elf-"
+	@$(ECHO) "  make check format lint"
+
+# Phony target to avoid filename conflicts
+.PHONY: all directories static shared module tests check format format-check
+.PHONY: lint tidy memcheck docs install uninstall disasm symbols size-analysis
+.PHONY: tags cscope clean distclean info help

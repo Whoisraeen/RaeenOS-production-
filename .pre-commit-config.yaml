@@ -1,0 +1,190 @@
+# RaeenOS pre-commit hooks configuration
+# Install with: pip install pre-commit && pre-commit install
+
+repos:
+  # Code formatting
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v14.0.6
+    hooks:
+      - id: clang-format
+        files: \.(c|h|cpp|hpp|cc|hh|cxx|hxx)$
+        args: [--style=file]
+
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      # Check file formatting
+      - id: trailing-whitespace
+        exclude: \.(md|patch|diff)$
+      - id: end-of-file-fixer
+        exclude: \.(bin|o|so|a|elf)$
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: check-symlinks
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+      
+      # Check file contents
+      - id: check-json
+      - id: check-yaml
+      - id: check-xml
+      - id: check-toml
+      
+      # Python specific
+      - id: check-ast
+        files: \.py$
+      - id: check-docstring-first
+        files: \.py$
+      - id: debug-statements
+        files: \.py$
+      
+      # Security checks
+      - id: detect-private-key
+      - id: detect-aws-credentials
+
+  # Python code formatting
+  - repo: https://github.com/psf/black
+    rev: 23.3.0
+    hooks:
+      - id: black
+        files: \.py$
+        args: [--line-length=88]
+
+  # Python import sorting
+  - repo: https://github.com/pycqa/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+        files: \.py$
+        args: [--profile=black]
+
+  # Python linting
+  - repo: https://github.com/pycqa/flake8
+    rev: 6.0.0
+    hooks:
+      - id: flake8
+        files: \.py$
+        args: [--max-line-length=88, --extend-ignore=E203,W503]
+
+  # Shell script checking
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.9.0.2
+    hooks:
+      - id: shellcheck
+        files: \.(sh|bash)$
+        args: [--severity=warning]
+
+  # Markdown linting
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.35.0
+    hooks:
+      - id: markdownlint
+        files: \.md$
+        args: [--disable=MD013,MD033,MD041]
+
+  # Git commit message formatting
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v2.4.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: [optional-scope]
+
+  # Local hooks for RaeenOS-specific checks
+  - repo: local
+    hooks:
+      # Check for TODO/FIXME comments in production code
+      - id: check-todos
+        name: Check for TODO/FIXME comments
+        entry: bash -c 'if grep -r --include="*.c" --include="*.h" --exclude-dir=tests --exclude-dir=docs "TODO\|FIXME\|XXX\|HACK" .; then echo "TODO/FIXME comments found in production code"; exit 1; fi'
+        language: system
+        pass_filenames: false
+        
+      # Check for debug prints in production code
+      - id: check-debug-prints
+        name: Check for debug print statements
+        entry: bash -c 'if grep -r --include="*.c" --include="*.h" --exclude-dir=tests --exclude-dir=docs "printf\|fprintf.*stderr\|cout\|cerr" .; then echo "Debug print statements found in production code"; exit 1; fi'
+        language: system
+        pass_filenames: false
+        
+      # Check for hardcoded paths
+      - id: check-hardcoded-paths
+        name: Check for hardcoded paths
+        entry: bash -c 'if grep -r --include="*.c" --include="*.h" '\''/tmp/\|/home/\|C:\\\|/Users/'\'' .; then echo "Hardcoded paths found"; exit 1; fi'
+        language: system
+        pass_filenames: false
+        
+      # Check for memory allocation without error checking
+      - id: check-malloc-usage
+        name: Check malloc/kmalloc error handling
+        entry: bash -c 'if grep -rn --include="*.c" "malloc\|kmalloc" . | grep -v "if.*malloc\|malloc.*if\|NULL"; then echo "Potential malloc without error checking found"; exit 1; fi'
+        language: system
+        pass_filenames: false
+        
+      # Check for banned functions in kernel code
+      - id: check-banned-functions
+        name: Check for banned functions in kernel code
+        entry: bash -c 'if grep -r --include="*.c" --include="*.h" "kernel/" -e "malloc\|free\|printf\|scanf\|strcpy\|strcat\|gets\|sprintf" .; then echo "Banned functions found in kernel code"; exit 1; fi'
+        language: system
+        pass_filenames: false
+        
+      # Check license headers
+      - id: check-license-header
+        name: Check license headers
+        entry: python3 tools/scripts/check_license_headers.py
+        language: system
+        files: \.(c|h|cpp|hpp)$
+        
+      # Build test
+      - id: build-test
+        name: Build test
+        entry: make clean && make BUILD_TYPE=debug -j$(nproc)
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+        
+      # Unit tests
+      - id: unit-tests
+        name: Run unit tests
+        entry: make test
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+        
+      # Static analysis
+      - id: cppcheck
+        name: Static analysis with cppcheck
+        entry: cppcheck --project=.cppcheck.cfg --error-exitcode=1
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+        
+      # Security checks
+      - id: security-scan
+        name: Security scan
+        entry: python3 tools/scripts/security_scan.py
+        language: system
+        files: \.(c|h|cpp|hpp)$
+        stages: [pre-push]
+
+# Global configuration
+default_stages: [commit]
+minimum_pre_commit_version: "2.20.0"
+
+# Exclude patterns
+exclude: |
+  (?x)^(
+    build/.*|
+    \.git/.*|
+    .*\.bin|
+    .*\.o|
+    .*\.so|
+    .*\.a|
+    .*\.elf|
+    external/.*|
+    third_party/.*|
+    vendor/.*
+  )$

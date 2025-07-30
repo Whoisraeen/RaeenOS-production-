@@ -1,0 +1,175 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug RaeenOS Kernel (QEMU)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/kernel.elf",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "miDebuggerServerAddress": "localhost:1234",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set architecture to i386",
+                    "text": "set architecture i386",
+                    "ignoreFailures": false
+                },
+                {
+                    "description": "Load symbol table",
+                    "text": "symbol-file ${workspaceFolder}/build/kernel.elf",
+                    "ignoreFailures": false
+                },
+                {
+                    "description": "Connect to QEMU",
+                    "text": "target remote localhost:1234",
+                    "ignoreFailures": false
+                },
+                {
+                    "description": "Set breakpoint at kernel entry",
+                    "text": "break kernel_main",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "Debug in QEMU",
+            "postDebugTask": "",
+            "logging": {
+                "engineLogging": false,
+                "trace": false,
+                "traceResponse": false
+            }
+        },
+        {
+            "name": "Debug Unit Test",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/test_${input:testName}",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "Build Debug"
+        },
+        {
+            "name": "Debug User Program",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/${input:programName}",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "Build Debug"
+        },
+        {
+            "name": "Attach to Running QEMU",
+            "type": "cppdbg",
+            "request": "attach",
+            "program": "${workspaceFolder}/build/kernel.elf",
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "miDebuggerServerAddress": "localhost:1234",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set architecture to i386",
+                    "text": "set architecture i386",
+                    "ignoreFailures": false
+                },
+                {
+                    "description": "Load symbol table",
+                    "text": "symbol-file ${workspaceFolder}/build/kernel.elf",
+                    "ignoreFailures": false
+                }
+            ]
+        },
+        {
+            "name": "Debug Python Script",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/tools"
+            }
+        },
+        {
+            "name": "Debug Build Script",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/tools/scripts/build.py",
+            "args": ["--debug", "--verbose"],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Memory Analysis (Valgrind)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "/usr/bin/valgrind",
+            "args": [
+                "--tool=memcheck",
+                "--leak-check=full",
+                "--show-leak-kinds=all",
+                "--track-origins=yes",
+                "--verbose",
+                "${workspaceFolder}/build/bin/test_${input:testName}"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": true,
+            "MIMode": "gdb",
+            "preLaunchTask": "Build Debug"
+        }
+    ],
+    "inputs": [
+        {
+            "id": "testName",
+            "description": "Enter the test name (without test_ prefix)",
+            "default": "memory",
+            "type": "promptString"
+        },
+        {
+            "id": "programName", 
+            "description": "Enter the program name",
+            "default": "shell",
+            "type": "promptString"
+        }
+    ]
+}
