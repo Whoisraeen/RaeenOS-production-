@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make:*)",
+      "Bash(ls:*)",
+      "Bash(gcc:*)",
+      "Bash(rm:*)",
+      "Bash(find:*)",
+      "Bash(nasm:*)",
+      "Bash(grep:*)"
+    ],
+    "deny": []
+  }
+}

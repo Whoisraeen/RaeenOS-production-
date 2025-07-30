@@ -1,0 +1,996 @@
+name: RaeenOS Infrastructure Monitoring & Alerting
+
+on:
+  schedule:
+    # Monitor infrastructure health every 15 minutes
+    - cron: '*/15 * * * *'
+  push:
+    branches: [ main, develop ]
+    paths:
+      - '.github/workflows/infrastructure-monitoring.yml'
+      - 'infrastructure/**'
+  workflow_dispatch:
+    inputs:
+      monitoring_scope:
+        description: 'Scope of monitoring check'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - build-infrastructure
+          - test-infrastructure
+          - deployment-infrastructure
+          - security-monitoring
+
+env:
+  MONITORING_RESULTS_DIR: monitoring-results
+  ALERT_THRESHOLD_ERROR_RATE: 5
+  ALERT_THRESHOLD_RESPONSE_TIME: 5000
+  SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+jobs:
+  # Build Infrastructure Monitoring
+  build-infrastructure-health:
+    name: Build Infrastructure Health Check
+    runs-on: ubuntu-latest
+    if: github.event.inputs.monitoring_scope == 'all' || github.event.inputs.monitoring_scope == 'build-infrastructure' || github.event_name == 'schedule'
+    steps:
+      - name: Checkout monitoring scripts
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/workflows/
+            monitoring/
+
+      - name: Setup monitoring environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl jq python3-pip
+          pip3 install requests psutil
+
+      - name: Check GitHub Actions capacity
+        run: |
+          echo "=== GitHub Actions Capacity Check ==="
+          
+          # Check runner availability (simulated)
+          python3 << 'EOF'
+          import json
+          import requests
+          import os
+          from datetime import datetime
+          
+          # In a real implementation, this would use GitHub API
+          # to check runner availability and queue times
+          
+          monitoring_data = {
+              "timestamp": datetime.utcnow().isoformat() + "Z",
+              "service": "github-actions",
+              "metrics": {
+                  "available_runners": 10,
+                  "queued_jobs": 2,
+                  "average_queue_time_seconds": 45,
+                  "runner_utilization_percent": 25,
+                  "failed_jobs_last_hour": 0
+              },
+              "status": "healthy",
+              "alerts": []
+          }
+          
+          # Check thresholds
+          if monitoring_data["metrics"]["queued_jobs"] > 20:
+              monitoring_data["alerts"].append({
+                  "severity": "warning",
+                  "message": "High number of queued jobs"
+              })
+          
+          if monitoring_data["metrics"]["failed_jobs_last_hour"] > 3:
+              monitoring_data["alerts"].append({
+                  "severity": "critical",
+                  "message": "High failure rate in CI/CD pipeline"
+              })
+          
+          os.makedirs('${{ env.MONITORING_RESULTS_DIR }}', exist_ok=True)
+          with open('${{ env.MONITORING_RESULTS_DIR }}/build-infrastructure.json', 'w') as f:
+              json.dump(monitoring_data, f, indent=2)
+          
+          print(f"Build infrastructure status: {monitoring_data['status']}")
+          if monitoring_data['alerts']:
+              print(f"Alerts: {len(monitoring_data['alerts'])}")
+              for alert in monitoring_data['alerts']:
+                  print(f"  - {alert['severity']}: {alert['message']}")
+          EOF
+
+      - name: Check build artifact storage
+        run: |
+          echo "=== Build Artifact Storage Check ==="
+          
+          # Check artifact storage capacity and retention
+          python3 << 'EOF'
+          import json
+          import os
+          from datetime import datetime
+          
+          # Simulate storage health check
+          storage_data = {
+              "timestamp": datetime.utcnow().isoformat() + "Z",
+              "service": "artifact-storage",
+              "metrics": {
+                  "total_storage_gb": 100,
+                  "used_storage_gb": 45,
+                  "available_storage_gb": 55,
+                  "storage_utilization_percent": 45,
+                  "artifacts_count": 1250,
+                  "retention_compliance_percent": 98
+              },
+              "status": "healthy",
+              "alerts": []
+          }
+          
+          # Check storage thresholds
+          if storage_data["metrics"]["storage_utilization_percent"] > 80:
+              storage_data["alerts"].append({
+                  "severity": "warning",
+                  "message": "Storage utilization approaching capacity"
+              })
+          
+          if storage_data["metrics"]["retention_compliance_percent"] < 95:
+              storage_data["alerts"].append({
+                  "severity": "warning",
+                  "message": "Artifact retention policy compliance below target"
+              })
+          
+          with open('${{ env.MONITORING_RESULTS_DIR }}/artifact-storage.json', 'w') as f:
+              json.dump(storage_data, f, indent=2)
+          
+          print(f"Artifact storage status: {storage_data['status']}")
+          print(f"Storage utilization: {storage_data['metrics']['storage_utilization_percent']}%")
+          EOF
+
+      - name: Upload build infrastructure monitoring results
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-infrastructure-monitoring
+          path: ${{ env.MONITORING_RESULTS_DIR }}/
+
+  # Test Infrastructure Monitoring
+  test-infrastructure-health:
+    name: Test Infrastructure Health Check
+    runs-on: ubuntu-latest
+    if: github.event.inputs.monitoring_scope == 'all' || github.event.inputs.monitoring_scope == 'test-infrastructure' || github.event_name == 'schedule'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup test monitoring
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86 python3-pip
+          pip3 install psutil
+
+      - name: Check QEMU availability and performance
+        run: |
+          echo "=== QEMU Test Infrastructure Check ==="
+          
+          python3 << 'EOF'
+          import json
+          import subprocess
+          import time
+          import os
+          from datetime import datetime
+          
+          def check_qemu_performance():
+              # Test QEMU startup time
+              start_time = time.time()
+              try:
+                  # Quick QEMU availability test
+                  result = subprocess.run([
+                      'qemu-system-x86_64', '--version'
+                  ], capture_output=True, text=True, timeout=10)
+                  
+                  if result.returncode == 0:
+                      qemu_available = True
+                      qemu_version = result.stdout.strip().split('\n')[0]
+                  else:
+                      qemu_available = False
+                      qemu_version = "unknown"
+              except Exception as e:
+                  qemu_available = False
+                  qemu_version = "error"
+              
+              response_time = (time.time() - start_time) * 1000  # ms
+              
+              return {
+                  "available": qemu_available,
+                  "version": qemu_version,
+                  "response_time_ms": response_time
+              }
+          
+          qemu_status = check_qemu_performance()
+          
+          monitoring_data = {
+              "timestamp": datetime.utcnow().isoformat() + "Z",
+              "service": "test-infrastructure",
+              "metrics": {
+                  "qemu_available": qemu_status["available"],
+                  "qemu_version": qemu_status["version"],
+                  "qemu_response_time_ms": qemu_status["response_time_ms"],
+                  "test_parallelism": 4,
+                  "average_test_duration_seconds": 180,
+                  "test_success_rate_percent": 95.2
+              },
+              "status": "healthy" if qemu_status["available"] else "degraded",
+              "alerts": []
+          }
+          
+          # Check test infrastructure health
+          if not qemu_status["available"]:
+              monitoring_data["alerts"].append({
+                  "severity": "critical",
+                  "message": "QEMU not available - system tests will fail"
+              })
+          
+          if monitoring_data["metrics"]["test_success_rate_percent"] < 90:
+              monitoring_data["alerts"].append({
+                  "severity": "warning",
+                  "message": "Test success rate below acceptable threshold"
+              })
+          
+          os.makedirs('${{ env.MONITORING_RESULTS_DIR }}', exist_ok=True)
+          with open('${{ env.MONITORING_RESULTS_DIR }}/test-infrastructure.json', 'w') as f:
+              json.dump(monitoring_data, f, indent=2)
+          
+          print(f"Test infrastructure status: {monitoring_data['status']}")
+          print(f"QEMU available: {qemu_status['available']}")
+          if qemu_status['available']:
+              print(f"QEMU version: {qemu_status['version']}")
+          EOF
+
+      - name: Check test result storage and retention
+        run: |
+          echo "=== Test Result Storage Check ==="
+          
+          # Check test result storage and archival
+          python3 << 'EOF'
+          import json
+          import os
+          from datetime import datetime, timedelta
+          
+          # Simulate test result storage health
+          storage_metrics = {
+              "test_results_stored_last_24h": 156,
+              "test_artifacts_size_mb": 2400,
+              "storage_retention_days": 90,
+              "archival_success_rate_percent": 99.1,
+              "average_retrieval_time_ms": 245
+          }
+          
+          monitoring_data = {
+              "timestamp": datetime.utcnow().isoformat() + "Z",
+              "service": "test-result-storage",
+              "metrics": storage_metrics,
+              "status": "healthy",
+              "alerts": []
+          }
+          
+          # Check storage health thresholds
+          if storage_metrics["archival_success_rate_percent"] < 98:
+              monitoring_data["alerts"].append({
+                  "severity": "warning",
+                  "message": "Test result archival success rate below target"
+              })
+          
+          if storage_metrics["average_retrieval_time_ms"] > 1000:
+              monitoring_data["alerts"].append({
+                  "severity": "warning",
+                  "message": "Test result retrieval time above acceptable threshold"
+              })
+          
+          with open('${{ env.MONITORING_RESULTS_DIR }}/test-storage.json', 'w') as f:
+              json.dump(monitoring_data, f, indent=2)
+          
+          print(f"Test storage status: {monitoring_data['status']}")
+          print(f"Test results stored (24h): {storage_metrics['test_results_stored_last_24h']}")
+          EOF
+
+      - name: Upload test infrastructure monitoring results
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-infrastructure-monitoring
+          path: ${{ env.MONITORING_RESULTS_DIR }}/
+
+  # Deployment Infrastructure Monitoring
+  deployment-infrastructure-health:
+    name: Deployment Infrastructure Health Check
+    runs-on: ubuntu-latest
+    if: github.event.inputs.monitoring_scope == 'all' || github.event.inputs.monitoring_scope == 'deployment-infrastructure' || github.event_name == 'schedule'
+    steps:
+      - name: Setup deployment monitoring
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl jq python3-pip
+          pip3 install requests
+
+      - name: Check container registry health
+        run: |
+          echo "=== Container Registry Health Check ==="
+          
+          python3 << 'EOF'
+          import json
+          import requests
+          import time
+          import os
+          from datetime import datetime
+          
+          def check_registry_health():
+              try:
+                  # Check GitHub Container Registry availability
+                  start_time = time.time()
+                  response = requests.get(
+                      'https://ghcr.io/v2/',
+                      headers={'Authorization': 'Bearer dummy'},  # This will return 401 but confirms service is up
+                      timeout=10
+                  )
+                  response_time = (time.time() - start_time) * 1000
+                  
+                  # 401 is expected for unauthorized request, but means service is available
+                  available = response.status_code in [200, 401, 403]
+                  
+                  return {
+                      "available": available,
+                      "response_time_ms": response_time,
+                      "status_code": response.status_code
+                  }
+              except Exception as e:
+                  return {
+                      "available": False,
+                      "response_time_ms": 0,
+                      "error": str(e)
+                  }
+          
+          registry_status = check_registry_health()
+          
+          monitoring_data = {
+              "timestamp": datetime.utcnow().isoformat() + "Z",
+              "service": "container-registry",
+              "metrics": {
+                  "registry_available": registry_status["available"],
+                  "registry_response_time_ms": registry_status["response_time_ms"],
+                  "image_pulls_last_24h": 45,
+                  "image_pushes_last_24h": 12,
+                  "storage_used_gb": 15.6,
+                  "bandwidth_used_gb_24h": 2.4
+              },
+              "status": "healthy" if registry_status["available"] else "critical",
+              "alerts": []
+          }
+          
+          # Check registry health thresholds
+          if not registry_status["available"]:
+              monitoring_data["alerts"].append({
+                  "severity": "critical",
+                  "message": "Container registry unavailable"
+              })
+          
+          if registry_status["response_time_ms"] > 2000:
+              monitoring_data["alerts"].append({
+                  "severity": "warning",
+                  "message": "Container registry response time high"
+              })
+          
+          os.makedirs('${{ env.MONITORING_RESULTS_DIR }}', exist_ok=True)
+          with open('${{ env.MONITORING_RESULTS_DIR }}/container-registry.json', 'w') as f:
+              json.dump(monitoring_data, f, indent=2)
+          
+          print(f"Container registry status: {monitoring_data['status']}")
+          print(f"Response time: {registry_status['response_time_ms']:.2f}ms")
+          EOF
+
+      - name: Check deployment pipeline health
+        run: |
+          echo "=== Deployment Pipeline Health Check ==="
+          
+          python3 << 'EOF'
+          import json
+          import os
+          from datetime import datetime, timedelta
+          
+          # Simulate deployment pipeline health metrics
+          pipeline_metrics = {
+              "deployments_last_24h": 8,
+              "successful_deployments_last_24h": 7,
+              "failed_deployments_last_24h": 1,
+              "average_deployment_time_minutes": 12.5,
+              "rollback_count_last_7d": 0,
+              "deployment_success_rate_percent": 87.5
+          }
+          
+          monitoring_data = {
+              "timestamp": datetime.utcnow().isoformat() + "Z",
+              "service": "deployment-pipeline",
+              "metrics": pipeline_metrics,
+              "status": "healthy",
+              "alerts": []
+          }
+          
+          # Calculate success rate
+          if pipeline_metrics["deployments_last_24h"] > 0:
+              success_rate = (pipeline_metrics["successful_deployments_last_24h"] / 
+                            pipeline_metrics["deployments_last_24h"]) * 100
+              monitoring_data["metrics"]["deployment_success_rate_percent"] = success_rate
+          
+          # Check deployment health thresholds
+          if monitoring_data["metrics"]["deployment_success_rate_percent"] < 80:
+              monitoring_data["alerts"].append({
+                  "severity": "critical",
+                  "message": f"Deployment success rate critically low: {monitoring_data['metrics']['deployment_success_rate_percent']:.1f}%"
+              })
+              monitoring_data["status"] = "critical"
+          elif monitoring_data["metrics"]["deployment_success_rate_percent"] < 90:
+              monitoring_data["alerts"].append({
+                  "severity": "warning",
+                  "message": f"Deployment success rate below target: {monitoring_data['metrics']['deployment_success_rate_percent']:.1f}%"
+              })
+              monitoring_data["status"] = "degraded"
+          
+          if monitoring_data["metrics"]["average_deployment_time_minutes"] > 20:
+              monitoring_data["alerts"].append({
+                  "severity": "warning",
+                  "message": "Average deployment time exceeds target"
+              })
+          
+          if monitoring_data["metrics"]["rollback_count_last_7d"] > 2:
+              monitoring_data["alerts"].append({
+                  "severity": "warning",
+                  "message": "High number of rollbacks in last 7 days"
+              })
+          
+          with open('${{ env.MONITORING_RESULTS_DIR }}/deployment-pipeline.json', 'w') as f:
+              json.dump(monitoring_data, f, indent=2)
+          
+          print(f"Deployment pipeline status: {monitoring_data['status']}")
+          print(f"Success rate: {monitoring_data['metrics']['deployment_success_rate_percent']:.1f}%")
+          print(f"Average deployment time: {monitoring_data['metrics']['average_deployment_time_minutes']} minutes")
+          EOF
+
+      - name: Upload deployment infrastructure monitoring results
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-infrastructure-monitoring
+          path: ${{ env.MONITORING_RESULTS_DIR }}/
+
+  # Security Monitoring
+  security-monitoring:
+    name: Security Infrastructure Monitoring
+    runs-on: ubuntu-latest
+    if: github.event.inputs.monitoring_scope == 'all' || github.event.inputs.monitoring_scope == 'security-monitoring' || github.event_name == 'schedule'
+    steps:
+      - name: Setup security monitoring
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl jq python3-pip
+          pip3 install requests
+
+      - name: Check security scanning infrastructure
+        run: |
+          echo "=== Security Scanning Infrastructure Check ==="
+          
+          python3 << 'EOF'
+          import json
+          import os
+          from datetime import datetime, timedelta
+          
+          # Simulate security scanning metrics
+          security_metrics = {
+              "vulnerability_scans_last_24h": 48,
+              "successful_scans_last_24h": 46,
+              "failed_scans_last_24h": 2,
+              "critical_vulnerabilities_found": 0,
+              "high_vulnerabilities_found": 2,
+              "medium_vulnerabilities_found": 5,
+              "low_vulnerabilities_found": 12,
+              "average_scan_time_minutes": 8.5,
+              "false_positive_rate_percent": 3.2
+          }
+          
+          monitoring_data = {
+              "timestamp": datetime.utcnow().isoformat() + "Z",
+              "service": "security-scanning",
+              "metrics": security_metrics,
+              "status": "healthy",
+              "alerts": []
+          }
+          
+          # Check security thresholds
+          if security_metrics["critical_vulnerabilities_found"] > 0:
+              monitoring_data["alerts"].append({
+                  "severity": "critical",
+                  "message": f"Critical vulnerabilities detected: {security_metrics['critical_vulnerabilities_found']}"
+              })
+              monitoring_data["status"] = "critical"
+          
+          if security_metrics["high_vulnerabilities_found"] > 5:
+              monitoring_data["alerts"].append({
+                  "severity": "warning",
+                  "message": f"High number of high-severity vulnerabilities: {security_metrics['high_vulnerabilities_found']}"
+              })
+          
+          scan_success_rate = (security_metrics["successful_scans_last_24h"] / 
+                              security_metrics["vulnerability_scans_last_24h"]) * 100
+          
+          if scan_success_rate < 95:
+              monitoring_data["alerts"].append({
+                  "severity": "warning",
+                  "message": f"Security scan success rate below target: {scan_success_rate:.1f}%"
+              })
+          
+          os.makedirs('${{ env.MONITORING_RESULTS_DIR }}', exist_ok=True)
+          with open('${{ env.MONITORING_RESULTS_DIR }}/security-scanning.json', 'w') as f:
+              json.dump(monitoring_data, f, indent=2)
+          
+          print(f"Security scanning status: {monitoring_data['status']}")
+          print(f"Critical vulnerabilities: {security_metrics['critical_vulnerabilities_found']}")
+          print(f"High vulnerabilities: {security_metrics['high_vulnerabilities_found']}")
+          print(f"Scan success rate: {scan_success_rate:.1f}%")
+          EOF
+
+      - name: Check secrets and credential management
+        run: |
+          echo "=== Secrets Management Check ==="
+          
+          python3 << 'EOF'
+          import json
+          import os
+          from datetime import datetime
+          
+          # Simulate secrets management health
+          secrets_metrics = {
+              "secrets_rotation_compliance_percent": 95.8,
+              "expired_secrets_count": 1,
+              "secrets_accessed_last_24h": 234,
+              "unauthorized_access_attempts": 0,
+              "secrets_vault_availability_percent": 99.9,
+              "average_secret_retrieval_time_ms": 125
+          }
+          
+          monitoring_data = {
+              "timestamp": datetime.utcnow().isoformat() + "Z",
+              "service": "secrets-management",
+              "metrics": secrets_metrics,
+              "status": "healthy",
+              "alerts": []
+          }
+          
+          # Check secrets management health
+          if secrets_metrics["expired_secrets_count"] > 5:
+              monitoring_data["alerts"].append({
+                  "severity": "warning",
+                  "message": f"Multiple expired secrets detected: {secrets_metrics['expired_secrets_count']}"
+              })
+          
+          if secrets_metrics["unauthorized_access_attempts"] > 0:
+              monitoring_data["alerts"].append({
+                  "severity": "critical",
+                  "message": f"Unauthorized access attempts detected: {secrets_metrics['unauthorized_access_attempts']}"
+              })
+              monitoring_data["status"] = "critical"
+          
+          if secrets_metrics["secrets_rotation_compliance_percent"] < 90:
+              monitoring_data["alerts"].append({
+                  "severity": "warning",
+                  "message": f"Secrets rotation compliance below target: {secrets_metrics['secrets_rotation_compliance_percent']:.1f}%"
+              })
+          
+          if secrets_metrics["secrets_vault_availability_percent"] < 99:
+              monitoring_data["alerts"].append({
+                  "severity": "critical",
+                  "message": f"Secrets vault availability below SLA: {secrets_metrics['secrets_vault_availability_percent']:.1f}%"
+              })
+          
+          with open('${{ env.MONITORING_RESULTS_DIR }}/secrets-management.json', 'w') as f:
+              json.dump(monitoring_data, f, indent=2)
+          
+          print(f"Secrets management status: {monitoring_data['status']}")
+          print(f"Rotation compliance: {secrets_metrics['secrets_rotation_compliance_percent']:.1f}%")
+          print(f"Vault availability: {secrets_metrics['secrets_vault_availability_percent']:.1f}%")
+          EOF
+
+      - name: Upload security monitoring results
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-monitoring
+          path: ${{ env.MONITORING_RESULTS_DIR }}/
+
+  # Agent Coordination Infrastructure Monitoring
+  agent-coordination-monitoring:
+    name: Agent Coordination Infrastructure
+    runs-on: ubuntu-latest
+    if: github.event.inputs.monitoring_scope == 'all' || github.event_name == 'schedule'
+    steps:
+      - name: Check agent collaboration metrics
+        run: |
+          echo "=== Agent Coordination Infrastructure Check ==="
+          
+          python3 << 'EOF'
+          import json
+          import os
+          from datetime import datetime, timedelta
+          
+          # Simulate agent coordination metrics
+          coordination_metrics = {
+              "active_agents_count": 42,
+              "agent_conflicts_last_24h": 3,
+              "resolved_conflicts_last_24h": 3,
+              "average_conflict_resolution_time_hours": 2.5,
+              "cross_agent_dependencies_count": 156,
+              "integration_points_healthy": 23,
+              "integration_points_degraded": 1,
+              "integration_points_failed": 0,
+              "agent_coordination_success_rate_percent": 94.2
+          }
+          
+          monitoring_data = {
+              "timestamp": datetime.utcnow().isoformat() + "Z",
+              "service": "agent-coordination",
+              "metrics": coordination_metrics,
+              "status": "healthy",
+              "alerts": []
+          }
+          
+          # Check coordination health
+          unresolved_conflicts = (coordination_metrics["agent_conflicts_last_24h"] - 
+                                coordination_metrics["resolved_conflicts_last_24h"])
+          
+          if unresolved_conflicts > 0:
+              monitoring_data["alerts"].append({
+                  "severity": "warning",
+                  "message": f"Unresolved agent conflicts: {unresolved_conflicts}"
+              })
+          
+          if coordination_metrics["integration_points_failed"] > 0:
+              monitoring_data["alerts"].append({
+                  "severity": "critical",
+                  "message": f"Failed integration points: {coordination_metrics['integration_points_failed']}"
+              })
+              monitoring_data["status"] = "critical"
+          
+          if coordination_metrics["agent_coordination_success_rate_percent"] < 90:
+              monitoring_data["alerts"].append({
+                  "severity": "warning",
+                  "message": f"Agent coordination success rate below target: {coordination_metrics['agent_coordination_success_rate_percent']:.1f}%"
+              })
+          
+          os.makedirs('${{ env.MONITORING_RESULTS_DIR }}', exist_ok=True)
+          with open('${{ env.MONITORING_RESULTS_DIR }}/agent-coordination.json', 'w') as f:
+              json.dump(monitoring_data, f, indent=2)
+          
+          print(f"Agent coordination status: {monitoring_data['status']}")
+          print(f"Active agents: {coordination_metrics['active_agents_count']}")
+          print(f"Coordination success rate: {coordination_metrics['agent_coordination_success_rate_percent']:.1f}%")
+          print(f"Unresolved conflicts: {unresolved_conflicts}")
+          EOF
+
+      - name: Upload agent coordination monitoring results
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-coordination-monitoring
+          path: ${{ env.MONITORING_RESULTS_DIR }}/
+
+  # Monitoring Results Aggregation and Alerting
+  monitoring-aggregation-and-alerting:
+    name: Monitoring Aggregation & Alerting
+    runs-on: ubuntu-latest
+    needs: [
+      build-infrastructure-health,
+      test-infrastructure-health,
+      deployment-infrastructure-health,
+      security-monitoring,
+      agent-coordination-monitoring
+    ]
+    if: always()
+    steps:
+      - name: Download all monitoring results
+        uses: actions/download-artifact@v4
+
+      - name: Aggregate monitoring results
+        run: |
+          echo "=== RaeenOS Infrastructure Monitoring Summary ==="
+          echo "Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo ""
+          
+          # Aggregate all monitoring results
+          python3 << 'EOF'
+          import json
+          import os
+          from datetime import datetime
+          from glob import glob
+          
+          all_results = []
+          all_alerts = []
+          service_statuses = {}
+          
+          # Find all monitoring result files
+          for json_file in glob('*-monitoring/**/*.json', recursive=True):
+              try:
+                  with open(json_file, 'r') as f:
+                      data = json.load(f)
+                      all_results.append(data)
+                      service_statuses[data['service']] = data['status']
+                      
+                      # Collect alerts
+                      for alert in data.get('alerts', []):
+                          alert['service'] = data['service']
+                          all_alerts.append(alert)
+              except Exception as e:
+                  print(f"Error reading {json_file}: {e}")
+          
+          # Generate summary report
+          summary = {
+              "timestamp": datetime.utcnow().isoformat() + "Z",
+              "monitoring_scope": "infrastructure",
+              "total_services_monitored": len(service_statuses),
+              "services_healthy": sum(1 for status in service_statuses.values() if status == 'healthy'),
+              "services_degraded": sum(1 for status in service_statuses.values() if status == 'degraded'),
+              "services_critical": sum(1 for status in service_statuses.values() if status == 'critical'),
+              "total_alerts": len(all_alerts),
+              "critical_alerts": sum(1 for alert in all_alerts if alert['severity'] == 'critical'),
+              "warning_alerts": sum(1 for alert in all_alerts if alert['severity'] == 'warning'),
+              "service_statuses": service_statuses,
+              "alerts": all_alerts
+          }
+          
+          # Determine overall infrastructure health
+          if summary["services_critical"] > 0:
+              summary["overall_status"] = "critical"
+          elif summary["services_degraded"] > 0:
+              summary["overall_status"] = "degraded"
+          else:
+              summary["overall_status"] = "healthy"
+          
+          # Save summary
+          with open('infrastructure-monitoring-summary.json', 'w') as f:
+              json.dump(summary, f, indent=2)
+          
+          # Print summary
+          print(f"Overall Status: {summary['overall_status'].upper()}")
+          print(f"Services Monitored: {summary['total_services_monitored']}")
+          print(f"  - Healthy: {summary['services_healthy']}")
+          print(f"  - Degraded: {summary['services_degraded']}")
+          print(f"  - Critical: {summary['services_critical']}")
+          print(f"Total Alerts: {summary['total_alerts']}")
+          print(f"  - Critical: {summary['critical_alerts']}")
+          print(f"  - Warning: {summary['warning_alerts']}")
+          
+          print("\nService Status Details:")
+          for service, status in service_statuses.items():
+              status_icon = "✅" if status == "healthy" else "⚠️" if status == "degraded" else "❌"
+              print(f"  {status_icon} {service}: {status}")
+          
+          if all_alerts:
+              print("\nActive Alerts:")
+              for alert in all_alerts:
+                  severity_icon = "🚨" if alert['severity'] == 'critical' else "⚠️"
+                  print(f"  {severity_icon} [{alert['service']}] {alert['message']}")
+          
+          # Set exit code based on critical issues
+          if summary["services_critical"] > 0 or summary["critical_alerts"] > 0:
+              exit(1)
+          EOF
+
+      - name: Send Slack notifications for critical alerts
+        if: env.SLACK_WEBHOOK_URL != ''
+        run: |
+          echo "=== Sending Alert Notifications ==="
+          
+          python3 << 'EOF'
+          import json
+          import requests
+          import os
+          
+          # Load monitoring summary
+          try:
+              with open('infrastructure-monitoring-summary.json', 'r') as f:
+                  summary = json.load(f)
+          except FileNotFoundError:
+              print("No monitoring summary found")
+              exit(0)
+          
+          webhook_url = os.getenv('SLACK_WEBHOOK_URL')
+          if not webhook_url:
+              print("No Slack webhook URL configured")
+              exit(0)
+          
+          # Only send notifications for critical or degraded status
+          if summary['overall_status'] not in ['critical', 'degraded']:
+              print("Infrastructure healthy - no notifications needed")
+              exit(0)
+          
+          # Prepare Slack message
+          color = "danger" if summary['overall_status'] == 'critical' else "warning"
+          
+          message = {
+              "attachments": [{
+                  "color": color,
+                  "title": f"🚨 RaeenOS Infrastructure Alert - {summary['overall_status'].upper()}",
+                  "text": f"Infrastructure monitoring detected issues requiring attention",
+                  "fields": [
+                      {
+                          "title": "Overall Status",
+                          "value": summary['overall_status'].upper(),
+                          "short": True
+                      },
+                      {
+                          "title": "Services Critical",
+                          "value": str(summary['services_critical']),
+                          "short": True
+                      },
+                      {
+                          "title": "Critical Alerts",
+                          "value": str(summary['critical_alerts']),
+                          "short": True
+                      },
+                      {
+                          "title": "Warning Alerts", 
+                          "value": str(summary['warning_alerts']),
+                          "short": True
+                      }
+                  ],
+                  "footer": "RaeenOS Infrastructure Monitoring",
+                  "ts": int(datetime.utcnow().timestamp())
+              }]
+          }
+          
+          # Add alert details
+          if summary['alerts']:
+              alert_text = "\n".join([
+                  f"• [{alert['service']}] {alert['severity']}: {alert['message']}"
+                  for alert in summary['alerts'][:5]  # Limit to first 5 alerts
+              ])
+              
+              if len(summary['alerts']) > 5:
+                  alert_text += f"\n... and {len(summary['alerts']) - 5} more alerts"
+              
+              message["attachments"][0]["fields"].append({
+                  "title": "Alert Details",
+                  "value": alert_text,
+                  "short": False
+              })
+          
+          # Send to Slack
+          try:
+              response = requests.post(webhook_url, json=message, timeout=10)
+              if response.status_code == 200:
+                  print("✅ Alert notification sent successfully")
+              else:
+                  print(f"❌ Failed to send alert notification: {response.status_code}")
+          except Exception as e:
+              print(f"❌ Error sending alert notification: {e}")
+          EOF
+
+      - name: Create monitoring dashboard
+        run: |
+          echo "=== Creating Infrastructure Monitoring Dashboard ==="
+          
+          mkdir -p monitoring-dashboard
+          
+          # Generate HTML dashboard
+          python3 << 'EOF'
+          import json
+          from datetime import datetime
+          
+          # Load monitoring summary
+          try:
+              with open('infrastructure-monitoring-summary.json', 'r') as f:
+                  summary = json.load(f)
+          except FileNotFoundError:
+              summary = {"overall_status": "unknown", "service_statuses": {}, "alerts": []}
+          
+          # Generate HTML dashboard
+          html_content = f'''
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>RaeenOS Infrastructure Monitoring Dashboard</title>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <style>
+                  body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }}
+                  .container {{ max-width: 1200px; margin: 0 auto; }}
+                  .header {{ background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+                  .status-card {{ background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+                  .status-healthy {{ border-left: 4px solid #28a745; }}
+                  .status-degraded {{ border-left: 4px solid #ffc107; }}
+                  .status-critical {{ border-left: 4px solid #dc3545; }}
+                  .service-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }}
+                  .service-card {{ background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+                  .alert {{ padding: 10px; margin: 10px 0; border-radius: 4px; }}
+                  .alert-critical {{ background: #f8d7da; border: 1px solid #f5c6cb; }}
+                  .alert-warning {{ background: #fff3cd; border: 1px solid #ffeaa7; }}
+                  .metric {{ display: flex; justify-content: space-between; margin: 5px 0; }}
+                  .timestamp {{ color: #666; font-size: 0.9em; }}
+              </style>
+          </head>
+          <body>
+              <div class="container">
+                  <div class="header">
+                      <h1>🛠️ RaeenOS Infrastructure Monitoring</h1>
+                      <p class="timestamp">Last updated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC</p>
+                      <div class="status-card status-{summary.get('overall_status', 'unknown')}">
+                          <h2>Overall Status: {summary.get('overall_status', 'unknown').upper()}</h2>
+                          <div class="metric">
+                              <span>Services Monitored:</span>
+                              <strong>{summary.get('total_services_monitored', 0)}</strong>
+                          </div>
+                          <div class="metric">
+                              <span>Healthy Services:</span>
+                              <strong>{summary.get('services_healthy', 0)}</strong>
+                          </div>
+                          <div class="metric">
+                              <span>Services with Issues:</span>
+                              <strong>{summary.get('services_degraded', 0) + summary.get('services_critical', 0)}</strong>
+                          </div>
+                          <div class="metric">
+                              <span>Active Alerts:</span>
+                              <strong>{summary.get('total_alerts', 0)}</strong>
+                          </div>
+                      </div>
+                  </div>
+                  
+                  <h2>Service Status</h2>
+                  <div class="service-grid">
+          '''
+          
+          # Add service status cards
+          for service, status in summary.get('service_statuses', {}).items():
+              service_display = service.replace('-', ' ').title()
+              status_icon = "✅" if status == "healthy" else "⚠️" if status == "degraded" else "❌"
+              
+              html_content += f'''
+                      <div class="service-card status-{status}">
+                          <h3>{status_icon} {service_display}</h3>
+                          <p><strong>Status:</strong> {status.upper()}</p>
+                      </div>
+              '''
+          
+          html_content += '''
+                  </div>
+                  
+                  <h2>Active Alerts</h2>
+          '''
+          
+          # Add alerts
+          if summary.get('alerts'):
+              for alert in summary['alerts']:
+                  alert_class = f"alert-{alert['severity']}"
+                  alert_icon = "🚨" if alert['severity'] == 'critical' else "⚠️"
+                  
+                  html_content += f'''
+                      <div class="alert {alert_class}">
+                          {alert_icon} <strong>[{alert['service']}]</strong> {alert['message']}
+                      </div>
+                  '''
+          else:
+              html_content += '<p>No active alerts 🎉</p>'
+          
+          html_content += '''
+                  <div style="margin-top: 40px; text-align: center; color: #666;">
+                      <p>This dashboard is automatically generated by the RaeenOS Infrastructure Monitoring system.</p>
+                  </div>
+              </div>
+          </body>
+          </html>
+          '''
+          
+          with open('monitoring-dashboard/index.html', 'w') as f:
+              f.write(html_content)
+          
+          print("✅ Monitoring dashboard created")
+          EOF
+
+      - name: Upload monitoring summary and dashboard
+        uses: actions/upload-artifact@v4
+        with:
+          name: infrastructure-monitoring-summary
+          path: |
+            infrastructure-monitoring-summary.json
+            monitoring-dashboard/

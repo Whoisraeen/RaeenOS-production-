@@ -1,0 +1,430 @@
+# RaeenOS Multi-Platform Build System
+# Enhanced Makefile supporting multiple architectures and CI/CD integration
+
+# Build configuration
+TARGET ?= x86-64
+CC_TYPE ?= gcc
+BUILD_TYPE ?= debug
+ENABLE_TESTS ?= 1
+ENABLE_COVERAGE ?= 0
+PARALLEL_JOBS ?= $(shell nproc)
+
+# Version information
+VERSION_MAJOR := 1
+VERSION_MINOR := 0
+VERSION_PATCH := 0
+VERSION_BUILD := $(shell git rev-parse --short HEAD 2>/dev/null || echo "dev")
+VERSION := $(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_PATCH)-$(VERSION_BUILD)
+
+# Directory structure
+BUILD_DIR := build/$(TARGET)-$(CC_TYPE)-$(BUILD_TYPE)
+SRC_DIR := .
+KERNEL_DIR := $(SRC_DIR)/kernel
+BOOT_DIR := $(SRC_DIR)/boot
+DRIVERS_DIR := $(SRC_DIR)/drivers
+USERLAND_DIR := $(SRC_DIR)/userland
+TESTS_DIR := tests
+TOOLS_DIR := tools
+
+# Platform-specific configuration
+ifeq ($(TARGET),x86-64)
+    ARCH_CFLAGS := -m64 -mcmodel=kernel -mno-red-zone -mno-mmx -mno-sse -mno-sse2
+    ARCH_LDFLAGS := -m elf_x86_64
+    CROSS_PREFIX := x86_64-elf-
+    QEMU_SYSTEM := qemu-system-x86_64
+    QEMU_MACHINE := 
+    BOOT_PROTOCOL := multiboot2
+else ifeq ($(TARGET),i386)
+    ARCH_CFLAGS := -m32
+    ARCH_LDFLAGS := -m elf_i386
+    CROSS_PREFIX := i686-elf-
+    QEMU_SYSTEM := qemu-system-i386
+    QEMU_MACHINE := 
+    BOOT_PROTOCOL := multiboot
+else ifeq ($(TARGET),arm64)
+    ARCH_CFLAGS := -mcpu=cortex-a57 -mstrict-align
+    ARCH_LDFLAGS := -m aarch64elf
+    CROSS_PREFIX := aarch64-elf-
+    QEMU_SYSTEM := qemu-system-aarch64
+    QEMU_MACHINE := -machine virt -cpu cortex-a57
+    BOOT_PROTOCOL := devicetree
+else ifeq ($(TARGET),riscv64)
+    ARCH_CFLAGS := -march=rv64imac -mabi=lp64
+    ARCH_LDFLAGS := -m elf64lriscv
+    CROSS_PREFIX := riscv64-elf-
+    QEMU_SYSTEM := qemu-system-riscv64
+    QEMU_MACHINE := -machine virt
+    BOOT_PROTOCOL := opensbi
+else
+    $(error Unsupported target architecture: $(TARGET))
+endif
+
+# Compiler selection
+ifeq ($(CC_TYPE),gcc)
+    CC := $(shell which $(CROSS_PREFIX)gcc 2>/dev/null || echo gcc)
+    CXX := $(shell which $(CROSS_PREFIX)g++ 2>/dev/null || echo g++)
+    AS := $(shell which $(CROSS_PREFIX)as 2>/dev/null || echo as)
+    LD := $(shell which $(CROSS_PREFIX)ld 2>/dev/null || echo ld)
+    AR := $(shell which $(CROSS_PREFIX)ar 2>/dev/null || echo ar)
+    OBJCOPY := $(shell which $(CROSS_PREFIX)objcopy 2>/dev/null || echo objcopy)
+    OBJDUMP := $(shell which $(CROSS_PREFIX)objdump 2>/dev/null || echo objdump)
+    NM := $(shell which $(CROSS_PREFIX)nm 2>/dev/null || echo nm)
+    STRIP := $(shell which $(CROSS_PREFIX)strip 2>/dev/null || echo strip)
+else ifeq ($(CC_TYPE),clang)
+    CC := clang --target=$(TARGET)
+    CXX := clang++ --target=$(TARGET)
+    AS := llvm-as
+    LD := ld.lld
+    AR := llvm-ar
+    OBJCOPY := llvm-objcopy
+    OBJDUMP := llvm-objdump
+    NM := llvm-nm
+    STRIP := llvm-strip
+else
+    $(error Unsupported compiler type: $(CC_TYPE))
+endif
+
+# Build type specific flags
+ifeq ($(BUILD_TYPE),debug)
+    DEBUG_CFLAGS := -g3 -O0 -DDEBUG=1 -fno-omit-frame-pointer
+    DEBUG_LDFLAGS := -g
+else ifeq ($(BUILD_TYPE),release)
+    DEBUG_CFLAGS := -O2 -DNDEBUG=1 -fomit-frame-pointer
+    DEBUG_LDFLAGS := -s
+else ifeq ($(BUILD_TYPE),profile)
+    DEBUG_CFLAGS := -g3 -O2 -DPROFILE=1 -fno-omit-frame-pointer
+    DEBUG_LDFLAGS := -g
+else
+    $(error Unsupported build type: $(BUILD_TYPE))
+endif
+
+# Coverage flags
+ifeq ($(ENABLE_COVERAGE),1)
+    COVERAGE_CFLAGS := --coverage -fprofile-arcs -ftest-coverage
+    COVERAGE_LDFLAGS := --coverage
+else
+    COVERAGE_CFLAGS :=
+    COVERAGE_LDFLAGS :=
+endif
+
+# Common compiler flags
+BASE_CFLAGS := -ffreestanding -fno-builtin -fno-stack-protector -nostdlib \
+               -Wall -Wextra -Werror -Wno-unused-parameter -Wno-unused-variable \
+               -fno-strict-aliasing -fno-common -std=c11
+               
+KERNEL_CFLAGS := $(BASE_CFLAGS) $(ARCH_CFLAGS) $(DEBUG_CFLAGS) $(COVERAGE_CFLAGS) \
+                 -I$(KERNEL_DIR)/include -I$(KERNEL_DIR) -I$(DRIVERS_DIR) \
+                 -DVERSION_STRING=\"$(VERSION)\" -DTARGET_$(shell echo $(TARGET) | tr '[:lower:]-' '[:upper:]_')
+
+USERLAND_CFLAGS := $(BASE_CFLAGS) $(ARCH_CFLAGS) $(DEBUG_CFLAGS) \
+                   -I$(USERLAND_DIR)/include -I$(KERNEL_DIR)/include
+
+# Linker flags
+KERNEL_LDFLAGS := $(ARCH_LDFLAGS) $(DEBUG_LDFLAGS) $(COVERAGE_LDFLAGS) \
+                  -T $(KERNEL_DIR)/linker-$(TARGET).ld --no-relax -nostdlib
+
+# Assembly flags
+NASM := nasm
+ifeq ($(TARGET),x86-64)
+    ASMFLAGS := -f elf64
+else ifeq ($(TARGET),i386)
+    ASMFLAGS := -f elf32
+else
+    ASMFLAGS := -f elf64  # Default for other architectures
+endif
+
+# Source file discovery
+KERNEL_C_SOURCES := $(shell find $(KERNEL_DIR) -name "*.c" 2>/dev/null)
+KERNEL_ASM_SOURCES := $(shell find $(KERNEL_DIR) -name "*.asm" 2>/dev/null)
+DRIVERS_C_SOURCES := $(shell find $(DRIVERS_DIR) -name "*.c" 2>/dev/null)
+USERLAND_C_SOURCES := $(shell find $(USERLAND_DIR) -name "*.c" 2>/dev/null)
+
+# Object file generation
+KERNEL_C_OBJECTS := $(patsubst %.c,$(BUILD_DIR)/%.o,$(KERNEL_C_SOURCES))
+KERNEL_ASM_OBJECTS := $(patsubst %.asm,$(BUILD_DIR)/%.o,$(KERNEL_ASM_SOURCES))
+DRIVERS_OBJECTS := $(patsubst %.c,$(BUILD_DIR)/%.o,$(DRIVERS_C_SOURCES))
+USERLAND_OBJECTS := $(patsubst %.c,$(BUILD_DIR)/%.o,$(USERLAND_C_SOURCES))
+
+ALL_KERNEL_OBJECTS := $(KERNEL_C_OBJECTS) $(KERNEL_ASM_OBJECTS) $(DRIVERS_OBJECTS)
+
+# Output files
+KERNEL_ELF := $(BUILD_DIR)/kernel.elf
+KERNEL_BIN := $(BUILD_DIR)/kernel.bin
+USERLAND_BIN := $(BUILD_DIR)/userland.bin
+BOOT_BIN := $(BUILD_DIR)/boot.bin
+OS_IMAGE := $(BUILD_DIR)/raeenos-$(TARGET)-$(VERSION).bin
+ISO_IMAGE := $(BUILD_DIR)/raeenos-$(TARGET)-$(VERSION).iso
+
+# Test configuration
+ifeq ($(ENABLE_TESTS),1)
+    TEST_SOURCES := $(shell find $(TESTS_DIR) -name "*.c" 2>/dev/null)
+    TEST_OBJECTS := $(patsubst %.c,$(BUILD_DIR)/%.o,$(TEST_SOURCES))
+    TEST_BINARY := $(BUILD_DIR)/test-runner
+endif
+
+# Phony targets
+.PHONY: all clean kernel userland boot os-image iso test install help \
+        debug profile coverage check lint format docs docker \
+        qemu-test qemu-debug agent-build
+
+# Default target
+all: os-image
+
+# Help target
+help:
+	@echo "RaeenOS Multi-Platform Build System"
+	@echo "=================================="
+	@echo ""
+	@echo "Targets:"
+	@echo "  all          - Build complete OS image (default)"
+	@echo "  kernel       - Build kernel only"
+	@echo "  userland     - Build userland only"
+	@echo "  boot         - Build bootloader only"
+	@echo "  os-image     - Create bootable OS image"
+	@echo "  iso          - Create bootable ISO image"
+	@echo "  test         - Run test suite"
+	@echo "  clean        - Clean build files"
+	@echo "  install      - Install development tools"
+	@echo "  check        - Run static analysis"
+	@echo "  lint         - Run code linting"
+	@echo "  format       - Format source code"
+	@echo "  docs         - Generate documentation"
+	@echo "  qemu-test    - Test in QEMU"
+	@echo "  qemu-debug   - Debug in QEMU with GDB"
+	@echo ""
+	@echo "Configuration:"
+	@echo "  TARGET       - Target architecture (x86-64, i386, arm64, riscv64)"
+	@echo "  CC_TYPE      - Compiler type (gcc, clang)"
+	@echo "  BUILD_TYPE   - Build type (debug, release, profile)"
+	@echo "  ENABLE_TESTS - Enable test suite (0, 1)"
+	@echo "  ENABLE_COVERAGE - Enable coverage (0, 1)"
+	@echo ""
+	@echo "Current configuration:"
+	@echo "  TARGET=$(TARGET), CC_TYPE=$(CC_TYPE), BUILD_TYPE=$(BUILD_TYPE)"
+	@echo "  VERSION=$(VERSION)"
+
+# Build kernel
+kernel: $(KERNEL_ELF) $(KERNEL_BIN)
+
+$(KERNEL_ELF): $(ALL_KERNEL_OBJECTS)
+	@echo "Linking kernel for $(TARGET)..."
+	@mkdir -p $(dir $@)
+	$(LD) $(KERNEL_LDFLAGS) -o $@ $^
+
+$(KERNEL_BIN): $(KERNEL_ELF)
+	@echo "Creating kernel binary..."
+	$(OBJCOPY) -O binary $< $@
+
+# Build userland
+userland: $(USERLAND_BIN)
+
+$(USERLAND_BIN): $(USERLAND_OBJECTS)
+	@echo "Linking userland..."
+	@mkdir -p $(dir $@)
+	$(LD) $(KERNEL_LDFLAGS) -o $@ $^
+
+# Build bootloader
+boot: $(BOOT_BIN)
+
+$(BOOT_BIN): $(BOOT_DIR)/boot-$(TARGET).asm
+	@echo "Building bootloader for $(TARGET)..."
+	@mkdir -p $(dir $@)
+	$(NASM) -f bin $< -o $@
+
+# Create OS image
+os-image: $(OS_IMAGE)
+
+$(OS_IMAGE): $(BOOT_BIN) $(KERNEL_BIN)
+	@echo "Creating OS image..."
+	@mkdir -p $(dir $@)
+	cat $^ > $@
+
+# Create ISO image
+iso: $(ISO_IMAGE)
+
+$(ISO_IMAGE): $(OS_IMAGE)
+	@echo "Creating ISO image..."
+	@mkdir -p $(dir $@)/iso/{boot/grub,live}
+	cp $< $(dir $@)/iso/live/raeenos.bin
+	echo 'set timeout=10' > $(dir $@)/iso/boot/grub/grub.cfg
+	echo 'set default=0' >> $(dir $@)/iso/boot/grub/grub.cfg
+	echo 'menuentry "RaeenOS $(VERSION)" {' >> $(dir $@)/iso/boot/grub/grub.cfg
+	echo '    multiboot /live/raeenos.bin' >> $(dir $@)/iso/boot/grub/grub.cfg
+	echo '    boot' >> $(dir $@)/iso/boot/grub/grub.cfg
+	echo '}' >> $(dir $@)/iso/boot/grub/grub.cfg
+	grub-mkrescue -o $@ $(dir $@)/iso/ 2>/dev/null || \
+	echo "Warning: grub-mkrescue not available, ISO creation skipped"
+
+# Pattern rules
+$(BUILD_DIR)/%.o: %.c
+	@echo "Compiling $<..."
+	@mkdir -p $(dir $@)
+	$(CC) $(KERNEL_CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/%.o: %.asm
+	@echo "Assembling $<..."
+	@mkdir -p $(dir $@)
+	$(NASM) $(ASMFLAGS) $< -o $@
+
+# Test suite
+ifeq ($(ENABLE_TESTS),1)
+test: $(TEST_BINARY)
+	@echo "Running test suite..."
+	$(TEST_BINARY)
+
+$(TEST_BINARY): $(TEST_OBJECTS) $(filter-out $(BUILD_DIR)/kernel/kernel.o,$(ALL_KERNEL_OBJECTS))
+	@echo "Linking test binary..."
+	@mkdir -p $(dir $@)
+	$(CC) -o $@ $^ -lgcov
+
+$(BUILD_DIR)/$(TESTS_DIR)/%.o: $(TESTS_DIR)/%.c
+	@echo "Compiling test $<..."
+	@mkdir -p $(dir $@)
+	$(CC) $(KERNEL_CFLAGS) -I$(TESTS_DIR) -c $< -o $@
+endif
+
+# Quality assurance targets
+check:
+	@echo "Running static analysis..."
+	@if command -v cppcheck >/dev/null 2>&1; then \
+		cppcheck --enable=all --inconclusive \
+		--suppress=missingIncludeSystem \
+		--suppress=unusedFunction \
+		$(KERNEL_DIR) $(DRIVERS_DIR) $(USERLAND_DIR); \
+	else \
+		echo "cppcheck not found, skipping static analysis"; \
+	fi
+
+lint:
+	@echo "Running code linting..."
+	@if command -v clang-tidy >/dev/null 2>&1; then \
+		find $(KERNEL_DIR) $(DRIVERS_DIR) $(USERLAND_DIR) -name "*.c" \
+		-exec clang-tidy {} -- $(KERNEL_CFLAGS) \; ; \
+	else \
+		echo "clang-tidy not found, skipping linting"; \
+	fi
+
+format:
+	@echo "Formatting source code..."
+	@if command -v clang-format >/dev/null 2>&1; then \
+		find $(KERNEL_DIR) $(DRIVERS_DIR) $(USERLAND_DIR) \
+		-name "*.c" -o -name "*.h" \
+		-exec clang-format -i {} \; ; \
+	else \
+		echo "clang-format not found, skipping formatting"; \
+	fi
+
+# Documentation
+docs:
+	@echo "Generating documentation..."
+	@if command -v doxygen >/dev/null 2>&1; then \
+		doxygen Doxyfile; \
+	else \
+		echo "doxygen not found, skipping documentation generation"; \
+	fi
+
+# QEMU testing
+qemu-test: $(OS_IMAGE)
+	@echo "Testing in QEMU..."
+	$(QEMU_SYSTEM) $(QEMU_MACHINE) \
+		-m 256M \
+		-drive format=raw,file=$< \
+		-serial stdio \
+		-display none \
+		-no-reboot
+
+qemu-debug: $(OS_IMAGE)
+	@echo "Starting QEMU with GDB server..."
+	$(QEMU_SYSTEM) $(QEMU_MACHINE) \
+		-m 256M \
+		-drive format=raw,file=$< \
+		-serial stdio \
+		-display none \
+		-s -S &
+	@echo "Connect GDB to localhost:1234"
+	@echo "Use 'target remote localhost:1234' in GDB"
+
+# Agent-specific build target
+agent-build:
+	@echo "Agent-specific build for $(TARGET)..."
+	@echo "Agent: $(AGENT_TYPE:-unknown)"
+	@echo "Subsystem: $(SUBSYSTEM:-unknown)"
+	@$(MAKE) -j$(PARALLEL_JOBS) all
+
+# Installation of development tools
+install:
+	@echo "Installing development dependencies..."
+	@if command -v apt-get >/dev/null 2>&1; then \
+		sudo apt-get update && \
+		sudo apt-get install -y build-essential nasm qemu-system-x86 \
+		qemu-system-arm qemu-system-misc xorriso grub-pc-bin \
+		grub-efi-amd64-bin mtools dosfstools cppcheck clang-tidy \
+		clang-format doxygen valgrind lcov; \
+	elif command -v yum >/dev/null 2>&1; then \
+		sudo yum install -y gcc gcc-c++ nasm qemu-system-x86 \
+		grub2-tools xorriso cppcheck clang-tools-extra doxygen valgrind lcov; \
+	else \
+		echo "Please install development tools manually"; \
+	fi
+
+# Coverage report
+coverage: ENABLE_COVERAGE=1
+coverage: test
+	@echo "Generating coverage report..."
+	@if command -v lcov >/dev/null 2>&1; then \
+		lcov --capture --directory $(BUILD_DIR) --output-file $(BUILD_DIR)/coverage.info; \
+		genhtml $(BUILD_DIR)/coverage.info --output-directory $(BUILD_DIR)/coverage-html; \
+		echo "Coverage report generated in $(BUILD_DIR)/coverage-html/"; \
+	else \
+		echo "lcov not found, skipping coverage report generation"; \
+	fi
+
+# Docker build environment
+docker:
+	@echo "Building in Docker container..."
+	docker build -t raeenos-build -f Dockerfile.build .
+	docker run --rm -v $(PWD):/src -w /src raeenos-build make all
+
+# Clean targets
+clean:
+	@echo "Cleaning build files..."
+	rm -rf build/
+
+clean-all:
+	@echo "Cleaning all generated files..."
+	rm -rf build/ docs/html/ *.gcov *.gcda *.gcno
+
+# Debug information
+debug-info:
+	@echo "=== Build Information ==="
+	@echo "Target: $(TARGET)"
+	@echo "Compiler: $(CC_TYPE)"
+	@echo "Build Type: $(BUILD_TYPE)"
+	@echo "Version: $(VERSION)"
+	@echo "Build Directory: $(BUILD_DIR)"
+	@echo ""
+	@echo "=== Compiler Information ==="
+	@echo "CC: $(CC)"
+	@echo "CXX: $(CXX)"
+	@echo "LD: $(LD)"
+	@echo "AS: $(AS)"
+	@echo ""
+	@echo "=== Flags ==="
+	@echo "KERNEL_CFLAGS: $(KERNEL_CFLAGS)"
+	@echo "KERNEL_LDFLAGS: $(KERNEL_LDFLAGS)"
+	@echo ""
+	@echo "=== Sources ==="
+	@echo "Kernel C Sources: $(words $(KERNEL_C_SOURCES))"
+	@echo "Kernel ASM Sources: $(words $(KERNEL_ASM_SOURCES))"
+	@echo "Driver Sources: $(words $(DRIVERS_C_SOURCES))"
+	@echo "Userland Sources: $(words $(USERLAND_C_SOURCES))"
+
+# Include dependencies if they exist
+-include $(ALL_KERNEL_OBJECTS:.o=.d)
+-include $(USERLAND_OBJECTS:.o=.d)
+-include $(TEST_OBJECTS:.o=.d)
+
+# Dependency generation
+$(BUILD_DIR)/%.d: %.c
+	@mkdir -p $(dir $@)
+	@$(CC) $(KERNEL_CFLAGS) -MM -MT $(@:.d=.o) $< > $@
