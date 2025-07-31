@@ -11,10 +11,11 @@
  */
 
 #include "pmm_production.h"
-#include "memory_interface.h"
-#include "hal_interface.h"
-#include "types.h"
-#include "errno.h"
+#include "include/memory_interface.h"
+#include "include/hal_interface.h" 
+#include "include/types.h"
+#include "include/errno.h"
+#include "include/sync.h"
 #include "string.h"
 #include "vga.h"
 

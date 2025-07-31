@@ -36,4 +36,25 @@ typedef enum { false = 0, true = 1 } bool;
 #define ALIGN(x) __attribute__((aligned(x)))
 #define PACKED __attribute__((packed))
 
+// Physical address type
+typedef uint64_t phys_addr_t;
+
+// File offset type
+typedef int64_t off_t;
+
+// Page size constants
+#define PAGE_SIZE 4096
+#define PAGE_SHIFT 12
+
+// Number of CPUs (simplified for now)
+#define NR_CPUS 8
+
+// Memory map entry structure (from multiboot)
+typedef struct mmap_entry {
+    uint32_t size;
+    uint64_t addr;
+    uint64_t len;
+    uint32_t type;
+} __attribute__((packed)) mmap_entry_t;
+
 #endif
