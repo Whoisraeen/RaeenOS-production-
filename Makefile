@@ -63,7 +63,7 @@ endif
 # Additional outputs
 USERLAND_BIN = $(BUILD_DIR)/userland.bin
 
-.PHONY: all clean build kernel userland test debug help
+.PHONY: all clean build kernel userland test debug help format lint
 
 all: build
 
@@ -87,7 +87,19 @@ help:
 	@echo "  userland - Build userland only"
 	@echo "  clean    - Clean build files"
 	@echo "  debug    - Show build variables"
+	@echo "  format   - Format C source files using clang-format"
+	@echo "  lint     - Run static analysis on C source files using clang-tidy"
 	@echo "  help     - Show this help"
+
+format:
+	@echo "Formatting C source files..."
+	find $(SRC_DIR) -name "*.c" -o -name "*.h" | xargs clang-format -i
+	@echo "Formatting complete."
+
+lint:
+	@echo "Running static analysis..."
+	find $(SRC_DIR) -name "*.c" | xargs clang-tidy $(CFLAGS) --
+	@echo "Static analysis complete."
 
 test: $(OS_IMAGE)
 	@echo "Running basic build verification..."

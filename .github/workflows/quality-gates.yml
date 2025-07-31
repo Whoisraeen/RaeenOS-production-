@@ -1,0 +1,586 @@
+# RaeenOS Quality Gates CI/CD Pipeline
+# Automated quality enforcement for 42-agent development
+# Version: 1.0
+# Author: Testing & QA Automation Lead
+
+name: RaeenOS Quality Gates
+
+on:
+  push:
+    branches: [ main, develop, 'feature/*', 'agent/*' ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run nightly comprehensive tests
+    - cron: '0 2 * * *'
+
+env:
+  PROJECT_ROOT: ${{ github.workspace }}
+  QUALITY_TOOLS_DIR: ${{ github.workspace }}/tools/quality-gates
+  REPORTS_DIR: ${{ github.workspace }}/quality-reports
+  CACHE_VERSION: v1
+
+jobs:
+  # Job 1: Pre-Commit Quality Gate
+  pre-commit-quality-gate:
+    name: Pre-Commit Quality Gate
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        agent: [
+          'kernel-architect',
+          'driver-integration-specialist',
+          'gaming-layer-engineer',
+          'ux-wizard',
+          'raeen-studio-lead',
+          'privacy-security-engineer',
+          'ai-orchestrator'
+        ]
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Cache Dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/pip
+          ~/.cache/pre-commit
+        key: ${{ runner.os }}-deps-${{ env.CACHE_VERSION }}-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-deps-${{ env.CACHE_VERSION }}-
+    
+    - name: Install System Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          clang \
+          clang-tools \
+          cppcheck \
+          valgrind \
+          lcov \
+          qemu-system-x86 \
+          nasm \
+          gdb \
+          xvfb
+    
+    - name: Install Python Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r tools/quality-gates/requirements.txt
+    
+    - name: Setup Quality Tools
+      run: |
+        mkdir -p ${{ env.REPORTS_DIR }}
+        chmod +x ${{ env.QUALITY_TOOLS_DIR }}/*.sh
+        chmod +x ${{ env.QUALITY_TOOLS_DIR }}/*.py
+    
+    - name: Detect Changed Components
+      id: changes
+      run: |
+        if [ "${{ github.event_name }}" == "schedule" ]; then
+          # For scheduled runs, test all components
+          echo "component_path=${{ env.PROJECT_ROOT }}" >> $GITHUB_OUTPUT
+          echo "test_required=true" >> $GITHUB_OUTPUT
+        else
+          # For regular commits, detect changed components
+          AGENT_PATH=""
+          case "${{ matrix.agent }}" in
+            "kernel-architect")
+              AGENT_PATH="kernel"
+              ;;
+            "driver-integration-specialist")
+              AGENT_PATH="drivers"
+              ;;
+            "ux-wizard")
+              AGENT_PATH="kernel/ui"
+              ;;
+            "raeen-studio-lead")
+              AGENT_PATH="userland/raeenstudio"
+              ;;
+            *)
+              AGENT_PATH="."
+              ;;
+          esac
+          
+          if git diff --name-only HEAD~1 | grep -q "^$AGENT_PATH/"; then
+            echo "component_path=${{ env.PROJECT_ROOT }}/$AGENT_PATH" >> $GITHUB_OUTPUT
+            echo "test_required=true" >> $GITHUB_OUTPUT
+          else
+            echo "test_required=false" >> $GITHUB_OUTPUT
+          fi
+        fi
+    
+    - name: Run Pre-Commit Quality Gate
+      if: steps.changes.outputs.test_required == 'true'
+      run: |
+        ${{ env.QUALITY_TOOLS_DIR }}/quality_gate_validator.sh \
+          pre_commit \
+          ${{ matrix.agent }} \
+          ${{ steps.changes.outputs.component_path }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Upload Quality Reports
+      if: always() && steps.changes.outputs.test_required == 'true'
+      uses: actions/upload-artifact@v3
+      with:
+        name: pre-commit-reports-${{ matrix.agent }}
+        path: ${{ env.QUALITY_TOOLS_DIR }}/reports/
+        retention-days: 30
+    
+    - name: Comment PR with Results
+      if: github.event_name == 'pull_request' && steps.changes.outputs.test_required == 'true'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          // Find the latest quality report
+          const reportsDir = '${{ env.QUALITY_TOOLS_DIR }}/reports';
+          const agent = '${{ matrix.agent }}';
+          
+          try {
+            const files = fs.readdirSync(reportsDir);
+            const reportFiles = files.filter(f => f.startsWith(`${agent}_pre_commit_`) && f.endsWith('.json'));
+            
+            if (reportFiles.length > 0) {
+              const latestReport = reportFiles.sort().pop();
+              const reportPath = path.join(reportsDir, latestReport);
+              const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+              
+              const status = report.quality_gate.status;
+              const statusIcon = status === 'PASSED' ? '✅' : '❌';
+              
+              const comment = `## Quality Gate Results - ${agent}
+              
+              ${statusIcon} **Pre-Commit Quality Gate: ${status}**
+              
+              | Check | Status |
+              |-------|--------|
+              | Static Analysis | ${report.quality_gate.checks.static_analysis ? '✅' : '❌'} |
+              | Unit Tests | ${report.quality_gate.checks.unit_tests ? '✅' : '❌'} |
+              | Code Coverage | ${report.quality_gate.checks.code_coverage ? '✅' : '❌'} |
+              | Security Scan | ${report.quality_gate.checks.security_scan ? '✅' : '❌'} |
+              
+              **Timestamp:** ${report.quality_gate.timestamp}
+              `;
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            }
+          } catch (error) {
+            console.log('Could not read quality report:', error.message);
+          }
+
+  # Job 2: Pre-Merge Quality Gate
+  pre-merge-quality-gate:
+    name: Pre-Merge Quality Gate
+    runs-on: ubuntu-latest
+    needs: pre-commit-quality-gate
+    if: github.event_name == 'pull_request'
+    strategy:
+      fail-fast: false
+      matrix:
+        agent: [
+          'kernel-architect',
+          'driver-integration-specialist',
+          'gaming-layer-engineer',
+          'ux-wizard',
+          'raeen-studio-lead'
+        ]
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          clang \
+          clang-tools \
+          cppcheck \
+          valgrind \
+          lcov \
+          qemu-system-x86 \
+          nasm \
+          gdb \
+          xvfb
+        
+        python -m pip install --upgrade pip
+        pip install -r tools/quality-gates/requirements.txt
+    
+    - name: Setup Quality Tools
+      run: |
+        mkdir -p ${{ env.REPORTS_DIR }}
+        chmod +x ${{ env.QUALITY_TOOLS_DIR }}/*.sh
+        chmod +x ${{ env.QUALITY_TOOLS_DIR }}/*.py
+    
+    - name: Run Pre-Merge Quality Gate
+      run: |
+        ${{ env.QUALITY_TOOLS_DIR }}/quality_gate_validator.sh \
+          pre_merge \
+          ${{ matrix.agent }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Run Integration Tests
+      run: |
+        ${{ env.QUALITY_TOOLS_DIR }}/integration_test_framework.py \
+          --primary-agent ${{ matrix.agent }} \
+          --project-root ${{ env.PROJECT_ROOT }} \
+          --output ${{ env.REPORTS_DIR }}/integration_${{ matrix.agent }}.json
+    
+    - name: Run Performance Benchmarks
+      run: |
+        ${{ env.QUALITY_TOOLS_DIR }}/performance_benchmarks.py \
+          --agent ${{ matrix.agent }} \
+          --benchmark-type all \
+          --output ${{ env.REPORTS_DIR }}/performance_${{ matrix.agent }}.json
+    
+    - name: Upload Integration Reports
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: pre-merge-reports-${{ matrix.agent }}
+        path: ${{ env.REPORTS_DIR }}/
+        retention-days: 30
+
+  # Job 3: Hardware Compatibility Testing
+  hardware-compatibility:
+    name: Hardware Compatibility Testing
+    runs-on: ubuntu-latest
+    needs: pre-commit-quality-gate
+    if: github.event_name == 'schedule' || contains(github.event.head_commit.message, '[test-hardware]')
+    
+    strategy:
+      matrix:
+        platform: ['x86_64', 'arm64']
+        
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+    
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v2
+      with:
+        platforms: ${{ matrix.platform }}
+    
+    - name: Run Hardware Compatibility Tests
+      run: |
+        ${{ env.QUALITY_TOOLS_DIR }}/hardware_compatibility_test.py \
+          --platform ${{ matrix.platform }} \
+          --output ${{ env.REPORTS_DIR }}/hardware_${{ matrix.platform }}.json
+    
+    - name: Upload Hardware Test Reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: hardware-compatibility-${{ matrix.platform }}
+        path: ${{ env.REPORTS_DIR }}/
+        retention-days: 30
+
+  # Job 4: Security and Penetration Testing
+  security-testing:
+    name: Security Testing
+    runs-on: ubuntu-latest
+    needs: pre-commit-quality-gate
+    if: github.event_name == 'schedule' || contains(github.event.head_commit.message, '[test-security]')
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install Security Tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          nmap \
+          nikto \
+          sqlmap \
+          wapiti \
+          dirb
+        
+        pip install bandit semgrep safety
+    
+    - name: Run Security Scans
+      run: |
+        # Static Application Security Testing (SAST)
+        bandit -r . -f json -o ${{ env.REPORTS_DIR }}/bandit_report.json || true
+        semgrep --config=auto --json --output=${{ env.REPORTS_DIR }}/semgrep_report.json . || true
+        
+        # Dependency vulnerability scanning
+        safety check --json --output ${{ env.REPORTS_DIR }}/safety_report.json || true
+    
+    - name: Run Penetration Tests
+      run: |
+        ${{ env.QUALITY_TOOLS_DIR }}/security_penetration_test.py \
+          --output ${{ env.REPORTS_DIR }}/penetration_test.json
+    
+    - name: Upload Security Reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-test-reports
+        path: ${{ env.REPORTS_DIR }}/
+        retention-days: 30
+
+  # Job 5: Performance Regression Detection
+  performance-regression:
+    name: Performance Regression Detection
+    runs-on: ubuntu-latest
+    needs: pre-merge-quality-gate
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install Dependencies
+      run: |
+        pip install -r tools/quality-gates/requirements.txt
+    
+    - name: Download Baseline Performance Data
+      uses: actions/download-artifact@v3
+      with:
+        name: performance-baseline
+        path: ./baseline/
+      continue-on-error: true
+    
+    - name: Run Performance Regression Analysis
+      run: |
+        ${{ env.QUALITY_TOOLS_DIR }}/performance_regression_detector.py \
+          --current-reports ${{ env.REPORTS_DIR }}/performance_*.json \
+          --baseline-dir ./baseline/ \
+          --output ${{ env.REPORTS_DIR }}/regression_analysis.json
+    
+    - name: Comment PR with Regression Results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          
+          try {
+            const regressionReport = JSON.parse(fs.readFileSync('${{ env.REPORTS_DIR }}/regression_analysis.json', 'utf8'));
+            
+            if (regressionReport.regressions_detected > 0) {
+              const comment = `## ⚠️ Performance Regression Detected
+              
+              **Regressions Found:** ${regressionReport.regressions_detected}
+              **Critical Regressions:** ${regressionReport.critical_regressions}
+              
+              ### Affected Metrics:
+              ${regressionReport.metric_details
+                .filter(m => m.status === 'regression')
+                .map(m => `- **${m.metric}**: ${m.change_percent.toFixed(1)}% regression`)
+                .join('\n')}
+              
+              Please review and address performance regressions before merging.
+              `;
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            }
+          } catch (error) {
+            console.log('Could not read regression report:', error.message);
+          }
+
+  # Job 6: Quality Metrics Collection
+  quality-metrics:
+    name: Quality Metrics Collection
+    runs-on: ubuntu-latest
+    needs: [pre-merge-quality-gate, security-testing, performance-regression]
+    if: always()
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+    
+    - name: Download All Reports
+      uses: actions/download-artifact@v3
+      with:
+        path: ./all-reports/
+    
+    - name: Generate Quality Dashboard
+      run: |
+        ${{ env.QUALITY_TOOLS_DIR }}/quality_metrics_aggregator.py \
+          --reports-dir ./all-reports/ \
+          --output ${{ env.REPORTS_DIR }}/quality_dashboard.json
+    
+    - name: Update Quality Badge
+      run: |
+        # Generate dynamic quality badge based on results
+        python ${{ env.QUALITY_TOOLS_DIR }}/generate_quality_badge.py \
+          --dashboard ${{ env.REPORTS_DIR }}/quality_dashboard.json \
+          --output ${{ env.REPORTS_DIR }}/quality_badge.svg
+    
+    - name: Upload Quality Dashboard
+      uses: actions/upload-artifact@v3
+      with:
+        name: quality-dashboard
+        path: ${{ env.REPORTS_DIR }}/
+        retention-days: 90
+    
+    - name: Update Performance Baseline
+      if: github.ref == 'refs/heads/main'
+      run: |
+        # Update performance baseline for main branch
+        mkdir -p ./baseline/
+        cp ${{ env.REPORTS_DIR }}/performance_*.json ./baseline/
+    
+    - name: Upload Performance Baseline
+      if: github.ref == 'refs/heads/main'
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-baseline
+        path: ./baseline/
+        retention-days: 90
+
+  # Job 7: Release Quality Gate (only for release branches)
+  release-quality-gate:
+    name: Release Quality Gate
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/heads/release/') || github.ref == 'refs/heads/main'
+    needs: [pre-merge-quality-gate, hardware-compatibility, security-testing]
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          clang \
+          clang-tools \
+          qemu-system-x86 \
+          nasm
+        
+        pip install -r tools/quality-gates/requirements.txt
+    
+    - name: Run Comprehensive System Tests
+      run: |
+        ${{ env.QUALITY_TOOLS_DIR }}/system_test_suite.py \
+          --comprehensive \
+          --output ${{ env.REPORTS_DIR }}/system_tests.json
+    
+    - name: Run Release Quality Gate
+      run: |
+        ${{ env.QUALITY_TOOLS_DIR }}/quality_gate_validator.sh \
+          pre_release \
+          all_agents
+    
+    - name: Generate Release Readiness Report
+      run: |
+        ${{ env.QUALITY_TOOLS_DIR }}/release_readiness_checker.py \
+          --reports-dir ./all-reports/ \
+          --output ${{ env.REPORTS_DIR }}/release_readiness.json
+    
+    - name: Upload Release Reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: release-quality-reports
+        path: ${{ env.REPORTS_DIR }}/
+        retention-days: 365
+    
+    - name: Create Release Quality Summary
+      if: github.ref == 'refs/heads/main'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          
+          try {
+            const readinessReport = JSON.parse(fs.readFileSync('${{ env.REPORTS_DIR }}/release_readiness.json', 'utf8'));
+            
+            const summary = `# RaeenOS Release Quality Summary
+            
+            **Overall Readiness:** ${readinessReport.overall_status}
+            **Quality Score:** ${readinessReport.quality_score}/100
+            
+            ## Component Status:
+            ${Object.entries(readinessReport.component_status)
+              .map(([component, status]) => `- **${component}**: ${status}`)
+              .join('\n')}
+            
+            ## Quality Metrics:
+            - **Test Coverage:** ${readinessReport.metrics.test_coverage}%
+            - **Critical Bugs:** ${readinessReport.metrics.critical_bugs}
+            - **Security Vulnerabilities:** ${readinessReport.metrics.security_vulns}
+            - **Performance Score:** ${readinessReport.metrics.performance_score}/100
+            
+            Generated: ${new Date().toISOString()}
+            `;
+            
+            // Create or update release quality issue
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: ['release-quality'],
+              state: 'open'
+            });
+            
+            if (issues.data.length > 0) {
+              // Update existing issue
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issues.data[0].number,
+                body: summary
+              });
+            } else {
+              // Create new issue
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: 'RaeenOS Release Quality Status',
+                body: summary,
+                labels: ['release-quality']
+              });
+            }
+          } catch (error) {
+            console.log('Could not generate release summary:', error.message);
+          }

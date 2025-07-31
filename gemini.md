@@ -26,7 +26,7 @@ This checklist outlines the major development areas and features for RaeenOS, a 
 - [x] Implement customizable layouts, wallpapers, and docks.
 - [x] Design and implement fluid touchpad gestures.
 - [ ] Ensure zero-bloat, fast boot times, and ultra-responsive UI.
-- [ ] Implement internationalization (i18n) support.
+- [x] Implement internationalization (i18n) support.
 - [ ] Develop accessibility features.
 - [ ] Implement keyboard and mouse input handling.
 
@@ -84,7 +84,7 @@ This checklist outlines the major development areas and features for RaeenOS, a 
 - [ ] Integrate LLMs and voice processing.
 
 ## Product Ecosystem Integration
-- [ ] Plan for RaeenOne (companion mobile OS).
+- [x] Plan for RaeenOne (companion mobile OS).
 - [ ] Plan for RaeenVerse (cloud service + encrypted sync).
 - [ ] Develop RaeShell (custom shell/command line interface with extensions).
 

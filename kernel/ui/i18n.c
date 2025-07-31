@@ -8,14 +8,17 @@ static const char* current_locale = "en_US"; // Default locale
 typedef struct {
     const char* key;
     const char* en_US_value;
-    // Add more languages here
+    const char* es_ES_value;
+    const char* fr_FR_value;
 } translation_entry_t;
 
 static translation_entry_t translations[] = {
-    {"hello", "Hello"},
-    {"goodbye", "Goodbye"},
-    // Add more translations
-    {NULL, NULL} // Sentinel
+    {"hello", "Hello", "Hola", "Bonjour"},
+    {"goodbye", "Goodbye", "Adiós", "Au revoir"},
+    {"welcome", "Welcome to RaeenOS", "Bienvenido a RaeenOS", "Bienvenue sur RaeenOS"},
+    {"file_not_found", "File not found", "Archivo no encontrado", "Fichier non trouvé"},
+    {"error", "Error", "Error", "Erreur"},
+    {NULL, NULL, NULL, NULL} // Sentinel
 };
 
 void i18n_init(void) {
@@ -32,8 +35,14 @@ void i18n_set_locale(const char* locale_code) {
 const char* i18n_get_string(const char* key) {
     for (int i = 0; translations[i].key != NULL; i++) {
         if (strcmp(translations[i].key, key) == 0) {
-            // For now, always return English. Real implementation would check current_locale.
-            return translations[i].en_US_value;
+            if (strcmp(current_locale, "es_ES") == 0) {
+                return translations[i].es_ES_value;
+            } else if (strcmp(current_locale, "fr_FR") == 0) {
+                return translations[i].fr_FR_value;
+            } else {
+                // Default to en_US if locale not found or not implemented
+                return translations[i].en_US_value;
+            }
         }
     }
     return key; // Return key if not found
