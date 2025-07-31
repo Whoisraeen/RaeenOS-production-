@@ -1,0 +1,545 @@
+# RaeenOS Enhanced Master Makefile
+# Comprehensive build system supporting 42-agent coordinated development
+# Version: 2.0
+
+# Include build configuration
+include Makefile.config
+
+# Build system version
+BUILD_SYSTEM_VERSION = 2.0
+
+# Default target
+.DEFAULT_GOAL := all
+
+# Phony targets
+.PHONY: all clean help debug test install \
+        core system userspace ai virtualization compatibility enterprise \
+        kernel hal drivers security services network filesystem \
+        applications desktop shell ai-core ai-services \
+        vm-hypervisor vm-containers vm-security \
+        compat-windows compat-macos compat-android \
+        enterprise-deployment enterprise-management enterprise-compliance \
+        test-unit test-integration test-system test-performance test-security \
+        deploy iso installer format lint security-scan \
+        docs docs-api docs-guides quality-check \
+        setup-dev release version-info
+
+# High-level build targets
+all: core system userspace
+
+# Core OS components
+core: kernel hal drivers security
+system: services network filesystem
+userspace: applications desktop shell
+
+# AI and advanced features
+ai: ai-core ai-services ai-integration
+virtualization: vm-hypervisor vm-containers vm-security
+compatibility: compat-windows compat-macos compat-android
+enterprise: enterprise-deployment enterprise-management enterprise-compliance
+
+# Testing targets
+test: test-unit test-integration test-system
+test-all: test test-performance test-security
+
+# Deployment targets
+deploy: iso installer packages
+
+# Quality assurance targets
+quality: format lint security-scan test-all
+
+#==============================================================================
+# CORE OS COMPONENTS
+#==============================================================================
+
+# Kernel and core components
+kernel:
+	@echo "🔧 Building kernel..."
+	$(MAKE) -C core/kernel $(MAKEFLAGS)
+
+hal: 
+	@echo "🔧 Building HAL..."
+	$(MAKE) -C core/hal $(MAKEFLAGS)
+
+drivers: hal
+	@echo "🔧 Building drivers..."
+	$(MAKE) -C core/drivers $(MAKEFLAGS)
+
+security:
+	@echo "🔧 Building security framework..."
+	$(MAKE) -C core/security $(MAKEFLAGS)
+
+#==============================================================================
+# SYSTEM SERVICES
+#==============================================================================
+
+services: kernel security
+	@echo "🔧 Building system services..."
+	$(MAKE) -C system/services $(MAKEFLAGS)
+
+network: kernel security
+	@echo "🔧 Building network stack..."
+	$(MAKE) -C system/network $(MAKEFLAGS)
+
+filesystem: kernel security
+	@echo "🔧 Building filesystem..."
+	$(MAKE) -C system/filesystem $(MAKEFLAGS)
+
+#==============================================================================
+# USER-SPACE COMPONENTS
+#==============================================================================
+
+applications: system
+	@echo "🔧 Building applications..."
+	$(MAKE) -C userspace/applications $(MAKEFLAGS)
+
+desktop: drivers system
+	@echo "🔧 Building desktop environment..."
+	$(MAKE) -C userspace/desktop $(MAKEFLAGS)
+
+shell: system ai-core
+	@echo "🔧 Building RaeShell..."
+	$(MAKE) -C userspace/shell $(MAKEFLAGS)
+
+#==============================================================================
+# AI INTEGRATION
+#==============================================================================
+
+ai-core: kernel
+	@echo "🤖 Building AI core..."
+	$(MAKE) -C ai/core $(MAKEFLAGS)
+
+ai-services: ai-core system
+	@echo "🤖 Building AI services..."
+	$(MAKE) -C ai/services $(MAKEFLAGS)
+
+ai-integration: ai-core userspace
+	@echo "🤖 Building AI integration..."
+	$(MAKE) -C ai/integration $(MAKEFLAGS)
+
+#==============================================================================
+# VIRTUALIZATION
+#==============================================================================
+
+vm-hypervisor: kernel security
+	@echo "🖥️  Building RaeenVM hypervisor..."
+	$(MAKE) -C virtualization/hypervisor $(MAKEFLAGS)
+
+vm-containers: vm-hypervisor security
+	@echo "🖥️  Building container runtime..."
+	$(MAKE) -C virtualization/containers $(MAKEFLAGS)
+
+vm-security: vm-hypervisor security
+	@echo "🖥️  Building VM security..."
+	$(MAKE) -C virtualization/security $(MAKEFLAGS)
+
+#==============================================================================
+# COMPATIBILITY LAYERS
+#==============================================================================
+
+compat-windows: vm-hypervisor
+	@echo "🪟 Building Windows compatibility..."
+	$(MAKE) -C compatibility/windows $(MAKEFLAGS)
+
+compat-macos: vm-hypervisor
+	@echo "🍎 Building macOS compatibility..."
+	$(MAKE) -C compatibility/macos $(MAKEFLAGS)
+
+compat-android: vm-hypervisor
+	@echo "🤖 Building Android compatibility..."
+	$(MAKE) -C compatibility/android $(MAKEFLAGS)
+
+#==============================================================================
+# ENTERPRISE FEATURES
+#==============================================================================
+
+enterprise-deployment: system security
+	@echo "🏢 Building enterprise deployment..."
+	$(MAKE) -C enterprise/deployment $(MAKEFLAGS)
+
+enterprise-management: enterprise-deployment
+	@echo "🏢 Building enterprise management..."
+	$(MAKE) -C enterprise/management $(MAKEFLAGS)
+
+enterprise-compliance: security enterprise-deployment
+	@echo "🏢 Building enterprise compliance..."
+	$(MAKE) -C enterprise/compliance $(MAKEFLAGS)
+
+#==============================================================================
+# TESTING INFRASTRUCTURE
+#==============================================================================
+
+test-unit:
+	@echo "🧪 Running unit tests..."
+	$(MAKE) -C testing/unit $(MAKEFLAGS)
+
+test-integration: all
+	@echo "🧪 Running integration tests..."
+	$(MAKE) -C testing/integration $(MAKEFLAGS)
+
+test-system: all
+	@echo "🧪 Running system tests..."
+	$(MAKE) -C testing/system $(MAKEFLAGS)
+
+test-performance: all
+	@echo "📊 Running performance tests..."
+	$(MAKE) -C testing/performance $(MAKEFLAGS)
+
+test-security: all
+	@echo "🔒 Running security tests..."
+	$(MAKE) -C testing/security $(MAKEFLAGS)
+
+test-compatibility: compatibility
+	@echo "🔄 Running compatibility tests..."
+	$(MAKE) -C testing/compatibility $(MAKEFLAGS)
+
+#==============================================================================
+# QUALITY ASSURANCE
+#==============================================================================
+
+format:
+	@echo "🎨 Formatting source code..."
+	find . -name "*.c" -o -name "*.cpp" -o -name "*.h" | \
+		grep -v build/ | \
+		grep -v external/ | \
+		xargs $(CLANG_FORMAT) -i
+
+format-check:
+	@echo "🎨 Checking code formatting..."
+	@formatted_files=$$(find . -name "*.c" -o -name "*.cpp" -o -name "*.h" | \
+		grep -v build/ | \
+		grep -v external/ | \
+		xargs $(CLANG_FORMAT) --dry-run --Werror 2>&1 | wc -l); \
+	if [ $$formatted_files -gt 0 ]; then \
+		echo "❌ Code formatting issues found. Run 'make format' to fix."; \
+		exit 1; \
+	else \
+		echo "✅ Code formatting is correct."; \
+	fi
+
+lint:
+	@echo "🔍 Running code linting..."
+	find . -name "*.c" -o -name "*.cpp" | \
+		grep -v build/ | \
+		grep -v external/ | \
+		head -20 | \
+		xargs $(CLANG_TIDY) $(CFLAGS) --
+
+security-scan:
+	@echo "🔒 Running security scan..."
+	$(MAKE) -C tools/quality security-scan
+
+complexity-check:
+	@echo "📊 Checking code complexity..."
+	$(MAKE) -C tools/quality complexity-check
+
+coverage:
+	@echo "📊 Generating code coverage report..."
+	$(MAKE) -C tools/quality coverage
+
+quality-check: format-check lint security-scan complexity-check
+	@echo "✅ All quality checks completed"
+
+#==============================================================================
+# BUILD UTILITIES
+#==============================================================================
+
+setup-dev:
+	@echo "🛠️  Setting up development environment..."
+	./scripts/setup-dev-environment.sh
+
+clean:
+	@echo "🧹 Cleaning build artifacts..."
+	rm -rf $(BUILD_DIR)
+	$(MAKE) -C core clean
+	$(MAKE) -C system clean
+	$(MAKE) -C userspace clean
+	$(MAKE) -C ai clean
+	$(MAKE) -C virtualization clean
+	$(MAKE) -C compatibility clean
+	$(MAKE) -C enterprise clean
+	$(MAKE) -C testing clean
+	$(MAKE) -C deployment clean
+
+distclean: clean
+	@echo "🧹 Deep cleaning..."
+	find . -name "*.o" -delete
+	find . -name "*.d" -delete
+	find . -name "*~" -delete
+	find . -name ".DS_Store" -delete
+
+#==============================================================================
+# DEPLOYMENT
+#==============================================================================
+
+iso: all
+	@echo "💿 Creating bootable ISO..."
+	$(MAKE) -C deployment/images iso
+
+installer: all
+	@echo "📦 Building installer..."
+	$(MAKE) -C deployment/installer
+
+packages: all
+	@echo "📦 Building packages..."
+	$(MAKE) -C deployment/packages
+
+install: all
+	@echo "💾 Installing RaeenOS..."
+	$(MAKE) -C deployment install
+
+#==============================================================================
+# DOCUMENTATION
+#==============================================================================
+
+docs:
+	@echo "📚 Building documentation..."
+	$(MAKE) -C documentation
+
+docs-api:
+	@echo "📚 Building API documentation..."
+	doxygen docs/Doxyfile
+
+docs-guides:
+	@echo "📚 Building user guides..."
+	$(MAKE) -C documentation/guides
+
+#==============================================================================
+# VERSION AND RELEASE MANAGEMENT
+#==============================================================================
+
+version-info:
+	@echo "RaeenOS Build System v$(BUILD_SYSTEM_VERSION)"
+	@echo "Version: $(VERSION_STRING)"
+	@echo "Architecture: $(ARCH)"
+	@echo "Build Type: $(BUILD_TYPE)"
+	@echo "Features: $(FEATURES)"
+	@echo "Git Commit: $(VERSION_BUILD)"
+
+release: quality-check test-all
+	@echo "🚀 Creating release..."
+	@if [ -z "$(VERSION)" ]; then \
+		echo "❌ VERSION not specified. Use: make release VERSION=1.0.0"; \
+		exit 1; \
+	fi
+	@echo "Building release $(VERSION)..."
+	$(MAKE) clean
+	$(MAKE) BUILD_TYPE=release all
+	$(MAKE) BUILD_TYPE=release test-all
+	$(MAKE) BUILD_TYPE=release iso installer packages
+	@echo "✅ Release $(VERSION) created successfully"
+
+#==============================================================================
+# DEBUGGING AND DIAGNOSTICS
+#==============================================================================
+
+debug:
+	@echo "🐛 Build Configuration Debug Info"
+	@echo "=================================="
+	@echo "Build System Version: $(BUILD_SYSTEM_VERSION)"
+	@echo "Architecture: $(ARCH)"
+	@echo "Build Type: $(BUILD_TYPE)"
+	@echo "Features: $(FEATURES)"
+	@echo "Compiler: $(CC)"
+	@echo "Linker: $(LD)"
+	@echo "CFLAGS: $(CFLAGS)"
+	@echo "LDFLAGS: $(LDFLAGS)"
+	@echo "Parallel Jobs: $(PARALLEL_JOBS)"
+	@echo "Build Directory: $(BUILD_DIR)"
+	@echo "Version: $(VERSION_STRING)"
+	@echo ""
+	@echo "🎯 Module Status"
+	@echo "==============="
+	@echo "Kernel Sources: $(shell find core/kernel -name "*.c" 2>/dev/null | wc -l) files"
+	@echo "Driver Sources: $(shell find core/drivers -name "*.c" 2>/dev/null | wc -l) files"
+	@echo "Service Sources: $(shell find system/services -name "*.c" 2>/dev/null | wc -l) files"
+	@echo "Application Sources: $(shell find userspace/applications -name "*.c" 2>/dev/null | wc -l) files"
+
+debug-deps:
+	@echo "🔗 Dependency Analysis"
+	@echo "====================="
+	@echo "Core Dependencies:"
+	@echo "  kernel → hal → drivers → security"
+	@echo "System Dependencies:"
+	@echo "  services → kernel,security"
+	@echo "  network → kernel,security"
+	@echo "  filesystem → kernel,security"
+	@echo "User-space Dependencies:"
+	@echo "  applications → system"
+	@echo "  desktop → drivers,system"
+	@echo "  shell → system,ai-core"
+
+debug-agents:
+	@echo "👥 Agent Ownership Mapping"
+	@echo "========================="
+	@echo "core/kernel/ → kernel-architect"
+	@echo "core/hal/ → hardware-compat-expert"
+	@echo "core/drivers/ → driver-integration-specialist"
+	@echo "core/security/ → privacy-security-engineer"
+	@echo "system/services/ → various service agents"
+	@echo "system/network/ → network-architect"
+	@echo "userspace/desktop/ → ux-wizard"
+	@echo "userspace/shell/ → shell-cli-engineer"
+	@echo "ai/core/ → ai-orchestrator"
+	@echo "virtualization/ → virtualization-architect"
+
+#==============================================================================
+# CONTINUOUS INTEGRATION SUPPORT
+#==============================================================================
+
+ci-setup:
+	@echo "🤖 Setting up CI environment..."
+	./scripts/ci-setup.sh
+
+ci-build: format-check lint
+	@echo "🤖 CI Build Process..."
+	$(MAKE) BUILD_TYPE=release all
+
+ci-test: ci-build
+	@echo "🤖 CI Testing Process..."
+	$(MAKE) test-unit test-integration
+
+ci-deploy: ci-test
+	@echo "🤖 CI Deployment Process..."
+	$(MAKE) iso installer
+
+#==============================================================================
+# MONITORING AND METRICS
+#==============================================================================
+
+metrics:
+	@echo "📊 Build Metrics"
+	@echo "==============="
+	@echo "Lines of Code:"
+	@find . -name "*.c" -o -name "*.cpp" -o -name "*.h" | \
+		grep -v build/ | \
+		grep -v external/ | \
+		xargs wc -l | tail -1
+	@echo ""
+	@echo "File Counts by Module:"
+	@for dir in core system userspace ai virtualization compatibility enterprise; do \
+		if [ -d $$dir ]; then \
+			count=$$(find $$dir -name "*.c" -o -name "*.cpp" -o -name "*.h" | wc -l); \
+			echo "  $$dir: $$count files"; \
+		fi \
+	done
+
+build-time:
+	@echo "⏱️  Build Time Analysis"
+	@echo "====================="
+	@start_time=$$(date +%s); \
+	$(MAKE) all > /dev/null 2>&1; \
+	end_time=$$(date +%s); \
+	duration=$$((end_time - start_time)); \
+	echo "Total build time: $${duration}s"
+
+#==============================================================================
+# HELP SYSTEM
+#==============================================================================
+
+help:
+	@echo "🏗️  RaeenOS Build System v$(BUILD_SYSTEM_VERSION)"
+	@echo "================================================="
+	@echo ""
+	@echo "📋 Main Targets:"
+	@echo "  all              - Build complete OS (default)"
+	@echo "  core             - Build kernel, HAL, drivers, security"
+	@echo "  system           - Build system services, network, filesystem"
+	@echo "  userspace        - Build applications, desktop, shell"
+	@echo "  ai               - Build AI core and services"
+	@echo "  virtualization   - Build RaeenVM and containers"
+	@echo "  compatibility    - Build compatibility layers"
+	@echo "  enterprise       - Build enterprise features"
+	@echo ""
+	@echo "🧪 Testing Targets:"
+	@echo "  test             - Run unit and integration tests"
+	@echo "  test-unit        - Run unit tests only"
+	@echo "  test-integration - Run integration tests"
+	@echo "  test-system      - Run system tests"
+	@echo "  test-performance - Run performance benchmarks"
+	@echo "  test-security    - Run security tests"
+	@echo "  test-all         - Run all tests"
+	@echo ""
+	@echo "🔍 Quality Assurance:"
+	@echo "  format           - Format source code"
+	@echo "  format-check     - Check code formatting"
+	@echo "  lint             - Run code linting"
+	@echo "  security-scan    - Run security scanning"
+	@echo "  quality-check    - Run all quality checks"
+	@echo "  coverage         - Generate coverage report"
+	@echo ""
+	@echo "🚀 Deployment:"
+	@echo "  iso              - Create bootable ISO"
+	@echo "  installer        - Build installer"
+	@echo "  packages         - Build packages"
+	@echo "  install          - Install RaeenOS"
+	@echo "  release          - Create release build"
+	@echo ""
+	@echo "📚 Documentation:"
+	@echo "  docs             - Build all documentation"
+	@echo "  docs-api         - Build API documentation"
+	@echo "  docs-guides      - Build user guides"
+	@echo ""
+	@echo "🛠️  Development:"
+	@echo "  setup-dev        - Setup development environment"
+	@echo "  clean            - Clean build artifacts"
+	@echo "  distclean        - Deep clean"
+	@echo "  debug            - Show build configuration"
+	@echo "  debug-deps       - Show dependency analysis"
+	@echo "  debug-agents     - Show agent ownership mapping"
+	@echo "  metrics          - Show build metrics"
+	@echo "  version-info     - Show version information"
+	@echo ""
+	@echo "🔧 Configuration:"
+	@echo "  Architecture:     ARCH=[x86_64|arm64] (current: $(ARCH))"
+	@echo "  Build Type:       BUILD_TYPE=[debug|release|profile] (current: $(BUILD_TYPE))"
+	@echo "  Features:         FEATURES='AI VIRTUALIZATION ...' (current: $(FEATURES))"
+	@echo "  Parallel Jobs:    PARALLEL_JOBS=N (current: $(PARALLEL_JOBS))"
+	@echo ""
+	@echo "💡 Examples:"
+	@echo "  make ARCH=x86_64 BUILD_TYPE=release all"
+	@echo "  make FEATURES='AI VIRTUALIZATION' userspace"
+	@echo "  make PARALLEL_JOBS=8 test-all"
+	@echo "  make release VERSION=1.0.0"
+
+help-advanced:
+	@echo "🏗️  RaeenOS Advanced Build Options"
+	@echo "=================================="
+	@echo ""
+	@echo "🎯 Module-Specific Targets:"
+	@echo "  kernel           - Build kernel only"
+	@echo "  hal              - Build HAL only"
+	@echo "  drivers          - Build all drivers"
+	@echo "  security         - Build security framework"
+	@echo "  services         - Build system services"
+	@echo "  network          - Build network stack"
+	@echo "  filesystem       - Build filesystem"
+	@echo "  applications     - Build native applications"
+	@echo "  desktop          - Build desktop environment"
+	@echo "  shell            - Build RaeShell"
+	@echo "  ai-core          - Build AI core framework"
+	@echo "  vm-hypervisor    - Build RaeenVM hypervisor"
+	@echo "  compat-windows   - Build Windows compatibility"
+	@echo "  compat-macos     - Build macOS compatibility"
+	@echo "  compat-android   - Build Android compatibility"
+	@echo ""
+	@echo "🤖 CI/CD Integration:"
+	@echo "  ci-setup         - Setup CI environment"
+	@echo "  ci-build         - CI build process"
+	@echo "  ci-test          - CI testing process"
+	@echo "  ci-deploy        - CI deployment process"
+	@echo ""
+	@echo "📊 Monitoring:"
+	@echo "  build-time       - Measure build time"
+	@echo "  complexity-check - Check code complexity"
+	@echo ""
+	@echo "For more information, see: docs/REPOSITORY_ARCHITECTURE.md"
+
+# Include module-specific makefiles if they exist
+-include core/Makefile.local
+-include system/Makefile.local
+-include userspace/Makefile.local
+-include ai/Makefile.local
+-include virtualization/Makefile.local
+-include compatibility/Makefile.local
+-include enterprise/Makefile.local

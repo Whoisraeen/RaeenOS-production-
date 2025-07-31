@@ -1,0 +1,323 @@
+# RaeenOS Common Build Rules
+# Shared build rules for consistent builds across all modules
+# Version: 2.0
+
+#==============================================================================
+# COMMON PATTERN RULES
+#==============================================================================
+
+# C source to object file compilation
+$(OBJ_DIR)/%.o: %.c
+	$(ECHO_CMD) "  CC      $<"
+	$(Q)$(MKDIR) $(dir $@)
+	$(Q)$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
+
+# C++ source to object file compilation
+$(OBJ_DIR)/%.o: %.cpp
+	$(ECHO_CMD) "  CXX     $<"
+	$(Q)$(MKDIR) $(dir $@)
+	$(Q)$(CXX) $(CXXFLAGS) -MMD -MP -c $< -o $@
+
+# Assembly source to object file compilation
+$(OBJ_DIR)/%.o: %.S
+	$(ECHO_CMD) "  AS      $<"
+	$(Q)$(MKDIR) $(dir $@)
+	$(Q)$(CC) $(CFLAGS) $(ASFLAGS) -MMD -MP -c $< -o $@
+
+# NASM assembly to object file compilation
+$(OBJ_DIR)/%.o: %.asm
+	$(ECHO_CMD) "  NASM    $<"
+	$(Q)$(MKDIR) $(dir $@)
+	$(Q)$(NASM) $(NASMFLAGS) $< -o $@
+
+# Static library creation
+$(LIB_DIR)/lib%.a:
+	$(ECHO_CMD) "  AR      $@"
+	$(Q)$(MKDIR) $(dir $@)
+	$(Q)$(AR) rcs $@ $^
+
+# Binary creation
+$(BIN_DIR)/%:
+	$(ECHO_CMD) "  LD      $@"
+	$(Q)$(MKDIR) $(dir $@)
+	$(Q)$(LD) $(LDFLAGS) -o $@ $^
+
+#==============================================================================
+# MODULE BUILD FUNCTIONS
+#==============================================================================
+
+# Function to build a module
+# Usage: $(call build-module,module-name,sources,includes,libs)
+define build-module
+    MODULE_NAME := $(1)
+    MODULE_SOURCES := $(2)
+    MODULE_INCLUDES := $(3)
+    MODULE_LIBS := $(4)
+    
+    # Generate object file paths
+    MODULE_OBJECTS := $$(patsubst %.c,$$(OBJ_DIR)/$$(MODULE_NAME)/%.o,$$(filter %.c,$$(MODULE_SOURCES)))
+    MODULE_OBJECTS += $$(patsubst %.cpp,$$(OBJ_DIR)/$$(MODULE_NAME)/%.o,$$(filter %.cpp,$$(MODULE_SOURCES)))
+    MODULE_OBJECTS += $$(patsubst %.S,$$(OBJ_DIR)/$$(MODULE_NAME)/%.o,$$(filter %.S,$$(MODULE_SOURCES)))
+    MODULE_OBJECTS += $$(patsubst %.asm,$$(OBJ_DIR)/$$(MODULE_NAME)/%.o,$$(filter %.asm,$$(MODULE_SOURCES)))
+    
+    # Module library target
+    $$(LIB_DIR)/lib$$(MODULE_NAME).a: $$(MODULE_OBJECTS)
+	    $$(ECHO_CMD) "  AR      $$@"
+	    $$(Q)$$(MKDIR) $$(dir $$@)
+	    $$(Q)$$(AR) rcs $$@ $$^
+    
+    # Module-specific object compilation rules
+    $$(OBJ_DIR)/$$(MODULE_NAME)/%.o: %.c
+	    $$(ECHO_CMD) "  CC      $$<"
+	    $$(Q)$$(MKDIR) $$(dir $$@)
+	    $$(Q)$$(CC) $$(CFLAGS) $$(MODULE_INCLUDES) -MMD -MP -c $$< -o $$@
+    
+    $$(OBJ_DIR)/$$(MODULE_NAME)/%.o: %.cpp
+	    $$(ECHO_CMD) "  CXX     $$<"
+	    $$(Q)$$(MKDIR) $$(dir $$@)
+	    $$(Q)$$(CXX) $$(CXXFLAGS) $$(MODULE_INCLUDES) -MMD -MP -c $$< -o $$@
+    
+    $$(OBJ_DIR)/$$(MODULE_NAME)/%.o: %.S
+	    $$(ECHO_CMD) "  AS      $$<"
+	    $$(Q)$$(MKDIR) $$(dir $$@)
+	    $$(Q)$$(CC) $$(CFLAGS) $$(ASFLAGS) $$(MODULE_INCLUDES) -MMD -MP -c $$< -o $$@
+    
+    $$(OBJ_DIR)/$$(MODULE_NAME)/%.o: %.asm
+	    $$(ECHO_CMD) "  NASM    $$<"
+	    $$(Q)$$(MKDIR) $$(dir $$@)
+	    $$(Q)$$(NASM) $$(NASMFLAGS) $$< -o $$@
+    
+    # Clean rule for module
+    clean-$$(MODULE_NAME):
+	    $$(Q)$$(RMDIR) $$(OBJ_DIR)/$$(MODULE_NAME)
+	    $$(Q)$$(RM) $$(LIB_DIR)/lib$$(MODULE_NAME).a
+    
+    # Add to global clean
+    clean: clean-$$(MODULE_NAME)
+endef
+
+#==============================================================================
+# DEPENDENCY MANAGEMENT
+#==============================================================================
+
+# Include dependency files
+-include $(OBJ_DIR)/**/*.d
+
+# Dependency generation rule
+%.d: ;
+.PRECIOUS: %.d
+
+#==============================================================================
+# QUALITY ASSURANCE RULES
+#==============================================================================
+
+# Format checking rule for individual files
+%.format-check: %
+	@if [ -f "$<" ] && [[ "$<" =~ \.(c|cpp|h|hpp)$$ ]]; then \
+		if ! $(CLANG_FORMAT) --dry-run --Werror "$<" >/dev/null 2>&1; then \
+			echo "❌ Format check failed: $<"; \
+			exit 1; \
+		fi \
+	fi
+
+# Lint checking rule for individual files
+%.lint-check: %
+	@if [ -f "$<" ] && [[ "$<" =~ \.(c|cpp)$$ ]]; then \
+		$(CLANG_TIDY) "$<" $(CFLAGS) -- 2>/dev/null || true; \
+	fi
+
+# Security scanning rule for individual files
+%.security-check: %
+	@if [ -f "$<" ] && [[ "$<" =~ \.(c|cpp|h|hpp)$$ ]]; then \
+		if command -v $(FLAWFINDER) >/dev/null 2>&1; then \
+			$(FLAWFINDER) "$<" || true; \
+		fi \
+	fi
+
+#==============================================================================
+# TESTING RULES
+#==============================================================================
+
+# Unit test compilation rule
+$(OBJ_DIR)/tests/%.o: tests/%.c
+	$(ECHO_CMD) "  CC(T)   $<"
+	$(Q)$(MKDIR) $(dir $@)
+	$(Q)$(CC) $(CFLAGS) -DUNIT_TEST -MMD -MP -c $< -o $@
+
+# Unit test binary creation
+$(BIN_DIR)/test_%: $(OBJ_DIR)/tests/test_%.o
+	$(ECHO_CMD) "  LD(T)   $@"
+	$(Q)$(MKDIR) $(dir $@)
+	$(Q)$(CC) $(LDFLAGS) -o $@ $^ -lcriterion
+
+# Test execution rule
+run-test-%: $(BIN_DIR)/test_%
+	$(ECHO_CMD) "  RUN     $<"
+	$(Q)$<
+
+#==============================================================================
+# DOCUMENTATION RULES
+#==============================================================================
+
+# Doxygen documentation generation
+%.html: %.h
+	@if command -v $(DOXYGEN) >/dev/null 2>&1; then \
+		echo "  DOC     $<"; \
+		$(DOXYGEN) $(TOPDIR)/docs/Doxyfile; \
+	fi
+
+#==============================================================================
+# INSTALLATION RULES
+#==============================================================================
+
+# Installation rule template
+# Usage: $(call install-file,source,destination,mode)
+define install-file
+	$(ECHO_CMD) "  INSTALL $(2)"
+	$(Q)$(MKDIR) $(dir $(2))
+	$(Q)$(CP) $(1) $(2)
+	$(Q)chmod $(3) $(2) 2>/dev/null || true
+endef
+
+# Library installation
+install-lib-%: $(LIB_DIR)/lib%.a
+	$(call install-file,$<,$(INSTALL_DIR)/lib/$(notdir $<),644)
+
+# Binary installation
+install-bin-%: $(BIN_DIR)/%
+	$(call install-file,$<,$(INSTALL_DIR)/bin/$(notdir $<),755)
+
+# Header installation
+install-header-%: %.h
+	$(call install-file,$<,$(INSTALL_DIR)/include/$(notdir $<),644)
+
+#==============================================================================
+# DEBUGGING RULES
+#==============================================================================
+
+# Debug info rule
+debug-module-%:
+	@echo "Module: $*"
+	@echo "Sources: $($(shell echo $* | tr '[:lower:]' '[:upper:]')_SOURCES)"
+	@echo "Objects: $($(shell echo $* | tr '[:lower:]' '[:upper:]')_OBJECTS)"
+	@echo "Includes: $($(shell echo $* | tr '[:lower:]' '[:upper:]')_INCLUDES)"
+
+# Disassembly rule
+%.dis: %.o
+	$(ECHO_CMD) "  OBJDUMP $<"
+	$(Q)$(OBJDUMP) -d $< > $@
+
+# Symbol table rule
+%.sym: %.o
+	$(ECHO_CMD) "  NM      $<"
+	$(Q)$(NM) $< > $@
+
+#==============================================================================
+# UTILITY FUNCTIONS
+#==============================================================================
+
+# Function to get source files recursively
+# Usage: $(call get-sources,directory,extensions)
+define get-sources
+	$(foreach ext,$(2),$(shell find $(1) -name "*.$(ext)" 2>/dev/null))
+endef
+
+# Function to convert source paths to object paths
+# Usage: $(call src-to-obj,sources,module-name)
+define src-to-obj
+	$(patsubst %.c,$(OBJ_DIR)/$(2)/%.o,\
+	$(patsubst %.cpp,$(OBJ_DIR)/$(2)/%.o,\
+	$(patsubst %.S,$(OBJ_DIR)/$(2)/%.o,\
+	$(patsubst %.asm,$(OBJ_DIR)/$(2)/%.o,$(1)))))
+endef
+
+# Function to check if tool exists
+# Usage: $(call check-tool,tool-name)
+define check-tool
+	$(shell command -v $(1) >/dev/null 2>&1 && echo "yes" || echo "no")
+endef
+
+# Function to print colored output
+# Usage: $(call print-color,color,text)
+define print-color
+	@if [ -t 1 ] && command -v tput >/dev/null 2>&1; then \
+		case "$(1)" in \
+			red) tput setaf 1 ;; \
+			green) tput setaf 2 ;; \
+			yellow) tput setaf 3 ;; \
+			blue) tput setaf 4 ;; \
+			magenta) tput setaf 5 ;; \
+			cyan) tput setaf 6 ;; \
+		esac; \
+		echo "$(2)"; \
+		tput sgr0; \
+	else \
+		echo "$(2)"; \
+	fi
+endef
+
+#==============================================================================
+# SIZE ANALYSIS RULES
+#==============================================================================
+
+# Object file size analysis
+%.size: %.o
+	$(ECHO_CMD) "  SIZE    $<"
+	$(Q)size $< || ls -la $<
+
+# Library size analysis
+%.libsize: %.a
+	$(ECHO_CMD) "  LIBSIZE $<"
+	$(Q)size $< || ls -la $<
+	$(Q)$(AR) t $< | while read obj; do echo "  $$obj"; done
+
+#==============================================================================
+# PERFORMANCE RULES
+#==============================================================================
+
+# Profile-guided optimization data collection
+%.pgo: %
+	$(ECHO_CMD) "  PGO     $<"
+	$(Q)./$< # Run program to collect profile data
+
+# Coverage data collection
+%.gcov: %.o
+	$(ECHO_CMD) "  GCOV    $<"
+	$(Q)$(GCOV) $<
+
+#==============================================================================
+# VALIDATION RULES
+#==============================================================================
+
+# Validate build configuration
+validate-config:
+	@echo "Validating build configuration..."
+	@if [ -z "$(CC)" ]; then echo "❌ Compiler not found"; exit 1; fi
+	@if [ -z "$(LD)" ]; then echo "❌ Linker not found"; exit 1; fi
+	@echo "✅ Build configuration valid"
+
+# Validate source files
+validate-sources:
+	@echo "Validating source files..."
+	@find . -name "*.c" -o -name "*.cpp" -o -name "*.h" -o -name "*.hpp" | \
+		while read file; do \
+			if ! [ -f "$$file" ]; then \
+				echo "❌ Missing file: $$file"; \
+				exit 1; \
+			fi \
+		done
+	@echo "✅ Source files valid"
+
+#==============================================================================
+# HELPER TARGETS
+#==============================================================================
+
+.PHONY: validate-config validate-sources
+.PHONY: debug-module-% install-lib-% install-bin-% install-header-%
+.PHONY: run-test-% clean-%
+
+# Make dependency files precious to avoid deletion
+.PRECIOUS: $(OBJ_DIR)/%.d $(OBJ_DIR)/%.o
+
+# Secondary targets (don't delete intermediate files)
+.SECONDARY:
