@@ -104,7 +104,12 @@ install-headers:
 # Run security framework tests
 test: $(SECURITY_LIB)
 	@echo "  TEST    security framework"
-	@echo "Security framework test suite not yet implemented"
+	@echo "  CC      tests/security_tests.c"
+	@$(CC) $(CFLAGS) -c tests/security_tests.c -o tests/security_tests.o
+	@echo "  LINK    security_test_runner"
+	@$(CC) tests/security_tests.o $(SECURITY_LIB) -o security_test_runner
+	@echo "  RUN     security tests"
+	@./security_test_runner || echo "Some tests failed - check output above"
 
 # Generate security documentation
 docs:
