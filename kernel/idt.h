@@ -3,12 +3,11 @@
 #ifndef IDT_H
 #define IDT_H
 
-#include <stdint.h>
+#include "include/types.h"
 
 // The first 32 interrupts are reserved for CPU exceptions.
 // IRQs are remapped to start at interrupt 32.
 #define IRQ_TO_INT(irq) (irq + 32)
-#include <stddef.h>
 
 
 // An entry in the IDT

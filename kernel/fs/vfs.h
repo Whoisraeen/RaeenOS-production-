@@ -7,9 +7,8 @@
 #ifndef VFS_H
 #define VFS_H
 
-#include <stdint.h>
+#include "../include/types.h"
 #include "../ipc/pipe.h" // For pipe_t
-#include <stddef.h>
 
 #define VFS_FILENAME_MAX 256
 

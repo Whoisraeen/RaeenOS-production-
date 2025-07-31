@@ -5,8 +5,7 @@
 #include "../pmm.h"
 #include "../paging.h"
 #include "../memory.h"     // For kmalloc/kfree
-#include <stddef.h>       // For NULL
-#include "string.h"       // For memset
+#include "../string.h"    // For memset and string functions
 
 
 
@@ -198,38 +197,7 @@ void process_cleanup(process_t* proc) {
     proc->next = NULL;
 }
 
-// A simple itoa implementation to assist with debugging.
-// Converts an integer to a null-terminated string.
-static void itoa(int n, char* s) {
-    int i = 0;
-    if (n == 0) {
-        s[i++] = '0';
-        s[i] = '\0';
-        return;
-    }
-
-    int is_negative = n < 0;
-    if (is_negative) {
-        n = -n;
-    }
-
-    while (n != 0) {
-        s[i++] = (n % 10) + '0';
-        n = n / 10;
-    }
-
-    if (is_negative) {
-        s[i++] = '-';
-    }
-    s[i] = '\0';
-
-    // Reverse the string
-    for (int j = 0, k = i - 1; j < k; j++, k--) {
-        char temp = s[j];
-        s[j] = s[k];
-        s[k] = temp;
-    }
-}
+// Removed unused itoa function
 
 // Multi-level feedback queue scheduler.
 void schedule(void) {

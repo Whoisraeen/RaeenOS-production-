@@ -3,8 +3,7 @@
 #ifndef PIPE_H
 #define PIPE_H
 
-#include <stddef.h>
-#include <stdint.h>
+#include "../include/types.h"
 #include "../include/wait.h"
 
 #define PIPE_DEFAULT_SIZE 4096 // Default size for a pipe buffer, 4KB

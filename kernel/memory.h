@@ -3,7 +3,7 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
-#include <stddef.h>
+#include "include/types.h"
 
 // Initialize the kernel heap
 void memory_init(void);

@@ -6,7 +6,7 @@
 #ifndef KERNEL_STRING_H
 #define KERNEL_STRING_H
 
-#include <stddef.h>
+#include "include/types.h"
 
 size_t strlen(const char* str);
 int strcmp(const char* s1, const char* s2);
