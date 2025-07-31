@@ -22,7 +22,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "../include/types.h"
-#include "../sync.h"
+#include "../include/sync.h"
 #include "../include/hal_interface.h"
 
 #ifdef __cplusplus

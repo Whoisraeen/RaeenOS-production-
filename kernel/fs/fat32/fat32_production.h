@@ -22,11 +22,11 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "../vfs_production.h"
+#include "../vfs.h"
 #include "../buffer_cache.h"
 #include "../vfs_events.h"
 #include "../../include/types.h"
-#include "../../sync.h"
+#include "../../include/sync.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -411,7 +411,7 @@ int fat32_file_truncate(vfs_file_t* file, off_t length);
 /**
  * Sync file
  */
-int fat32_file_sync(vfs_file_t* file);
+int fat32_file_sync(vfs_file_t* file, int datasync);
 
 // Long filename support
 
@@ -579,6 +579,7 @@ int fat32_journal_replay(fat32_mount_t* mount);
 #define FAT32_ERR_CORRUPTED    -6008
 #define FAT32_ERR_BAD_CLUSTER  -6009
 #define FAT32_ERR_INVALID_NAME -6010
+#define FAT32_ERR_NOT_SUPPORTED -6011
 
 #ifdef __cplusplus
 }

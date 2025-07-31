@@ -16,7 +16,7 @@
  */
 
 #include "fat32_production.h"
-#include "../vfs_production.h"
+#include "../vfs.h"
 #include "../buffer_cache.h"
 #include "../vfs_events.h"
 #include "../../memory.h"
@@ -228,7 +228,7 @@ bool fat32_validate_boot_sector(const fat32_boot_sector_t* boot_sector) {
 /**
  * Mount FAT32 filesystem
  */
-vfs_superblock_t* fat32_mount_fs(const char* device, uint32_t flags, const void* data) {
+vfs_superblock_t* fat32_mount_fs(const char* device, uint32_t flags, const void* data __attribute__((unused))) {
     fat32_mount_t* mount;
     vfs_superblock_t* sb;
     fat32_boot_sector_t boot_sector;
@@ -251,7 +251,7 @@ vfs_superblock_t* fat32_mount_fs(const char* device, uint32_t flags, const void*
     memset(mount, 0, sizeof(fat32_mount_t));
     mount->device_id = device_id;
     mount->sector_size = 512; // Default sector size
-    mount->read_only = (flags & MS_RDONLY) != 0;
+    mount->read_only = (flags & VFS_O_RDONLY) != 0;
     
     // Initialize locks
     rwlock_init(&mount->mount_lock);
@@ -496,7 +496,7 @@ uint32_t fat32_get_next_cluster(fat32_mount_t* mount, uint32_t cluster) {
     hash = fat32_hash_cluster(cluster);
     
     flags = HAL_IRQ_SAVE();
-    spinlock_lock(&mount->cache_lock);
+    spin_lock(&mount->cache_lock);
     
     // Check cache first
     entry = mount->cluster_cache[hash];
@@ -505,14 +505,14 @@ uint32_t fat32_get_next_cluster(fat32_mount_t* mount, uint32_t cluster) {
             next_cluster = entry->next;
             fat32_cache_lru_touch(mount, entry);
             mount->cache_hits++;
-            spinlock_unlock(&mount->cache_lock);
+            spin_unlock(&mount->cache_lock);
             HAL_IRQ_RESTORE(flags);
             return next_cluster;
         }
         entry = entry->hash_next;
     }
     
-    spinlock_unlock(&mount->cache_lock);
+    spin_unlock(&mount->cache_lock);
     HAL_IRQ_RESTORE(flags);
     
     mount->cache_misses++;
@@ -589,7 +589,7 @@ void fat32_cache_set_cluster(fat32_mount_t* mount, uint32_t cluster, uint32_t ne
     hash = fat32_hash_cluster(cluster);
     
     flags = HAL_IRQ_SAVE();
-    spinlock_lock(&mount->cache_lock);
+    spin_lock(&mount->cache_lock);
     
     // Check if already in cache
     entry = mount->cluster_cache[hash];
@@ -598,7 +598,7 @@ void fat32_cache_set_cluster(fat32_mount_t* mount, uint32_t cluster, uint32_t ne
             entry->next = next;
             entry->dirty = false; // Just written to disk
             fat32_cache_lru_touch(mount, entry);
-            spinlock_unlock(&mount->cache_lock);
+            spin_unlock(&mount->cache_lock);
             HAL_IRQ_RESTORE(flags);
             return;
         }
@@ -608,7 +608,7 @@ void fat32_cache_set_cluster(fat32_mount_t* mount, uint32_t cluster, uint32_t ne
     // Allocate new entry
     entry = kmalloc(sizeof(fat32_cluster_cache_t));
     if (!entry) {
-        spinlock_unlock(&mount->cache_lock);
+        spin_unlock(&mount->cache_lock);
         HAL_IRQ_RESTORE(flags);
         return;
     }
@@ -624,7 +624,7 @@ void fat32_cache_set_cluster(fat32_mount_t* mount, uint32_t cluster, uint32_t ne
     // Add to LRU
     fat32_cache_lru_add(mount, entry);
     
-    spinlock_unlock(&mount->cache_lock);
+    spin_unlock(&mount->cache_lock);
     HAL_IRQ_RESTORE(flags);
 }
 
@@ -746,4 +746,231 @@ int fat32_flush_cluster_cache(fat32_mount_t* mount) {
     }
     
     return errors ? FAT32_ERR_IO_ERROR : FAT32_SUCCESS;
+}
+
+/**
+ * Open file
+ */
+int fat32_file_open(vfs_inode_t* inode, vfs_file_t* file) {
+    fat32_file_t* fat32_file;
+    fat32_mount_t* mount;
+    
+    if (!inode || !file) {
+        return FAT32_ERR_INVALID_ARG;
+    }
+    
+    mount = (fat32_mount_t*)inode->sb->private_data;
+    if (!mount) {
+        return FAT32_ERR_INVALID_ARG;
+    }
+    
+    // Allocate FAT32 file structure
+    fat32_file = kmalloc(sizeof(fat32_file_t));
+    if (!fat32_file) {
+        return FAT32_ERR_NO_MEMORY;
+    }
+    
+    memset(fat32_file, 0, sizeof(fat32_file_t));
+    fat32_file->vfs_file = file;
+    fat32_file->mount = mount;
+    fat32_file->first_cluster = 0; // Will be set from inode
+    fat32_file->current_cluster = fat32_file->first_cluster;
+    fat32_file->cluster_offset = 0;
+    fat32_file->file_position = 0;
+    
+    spinlock_init(&fat32_file->lock);
+    
+    file->private_data = fat32_file;
+    file->ops = &fat32_file_ops;
+    
+    return FAT32_SUCCESS;
+}
+
+/**
+ * Close file
+ */
+int fat32_file_close(vfs_file_t* file) {
+    fat32_file_t* fat32_file;
+    
+    if (!file || !file->private_data) {
+        return FAT32_ERR_INVALID_ARG;
+    }
+    
+    fat32_file = (fat32_file_t*)file->private_data;
+    
+    // Free cluster chain cache if allocated
+    if (fat32_file->cluster_chain) {
+        kfree(fat32_file->cluster_chain);
+    }
+    
+    kfree(fat32_file);
+    file->private_data = NULL;
+    
+    return FAT32_SUCCESS;
+}
+
+/**
+ * Read from file
+ */
+ssize_t fat32_file_read(vfs_file_t* file, void* buffer, size_t count, off_t* offset) {
+    fat32_file_t* fat32_file;
+    fat32_mount_t* mount;
+    ssize_t bytes_read = 0;
+    uint32_t cluster, sector;
+    uint8_t* cluster_buffer;
+    size_t bytes_to_read;
+    uint64_t file_offset;
+    
+    if (!file || !file->private_data || !buffer || !offset) {
+        return -FAT32_ERR_INVALID_ARG;
+    }
+    
+    fat32_file = (fat32_file_t*)file->private_data;
+    mount = fat32_file->mount;
+    file_offset = *offset;
+    
+    // Check file bounds
+    if (file_offset >= file->inode->size) {
+        return 0; // EOF
+    }
+    
+    if (file_offset + count > file->inode->size) {
+        count = file->inode->size - file_offset;
+    }
+    
+    cluster_buffer = kmalloc(mount->cluster_size);
+    if (!cluster_buffer) {
+        return -FAT32_ERR_NO_MEMORY;
+    }
+    
+    // Start from first cluster and seek to position
+    cluster = fat32_file->first_cluster;
+    uint32_t cluster_index = file_offset / mount->cluster_size;
+    
+    // Navigate to the correct cluster
+    for (uint32_t i = 0; i < cluster_index && !fat32_is_cluster_eof(cluster); i++) {
+        cluster = fat32_get_next_cluster(mount, cluster);
+    }
+    
+    if (fat32_is_cluster_eof(cluster)) {
+        kfree(cluster_buffer);
+        return 0; // EOF
+    }
+    
+    while (count > 0 && !fat32_is_cluster_eof(cluster)) {
+        // Read current cluster
+        sector = fat32_cluster_to_sector(mount, cluster);
+        if (fat32_read_sector(mount, sector, cluster_buffer) != FAT32_SUCCESS) {
+            kfree(cluster_buffer);
+            return -FAT32_ERR_IO_ERROR;
+        }
+        
+        // Calculate offset within cluster
+        uint32_t cluster_offset = file_offset % mount->cluster_size;
+        bytes_to_read = mount->cluster_size - cluster_offset;
+        if (bytes_to_read > count) {
+            bytes_to_read = count;
+        }
+        
+        // Copy data to user buffer
+        memcpy((uint8_t*)buffer + bytes_read, cluster_buffer + cluster_offset, bytes_to_read);
+        
+        bytes_read += bytes_to_read;
+        count -= bytes_to_read;
+        file_offset += bytes_to_read;
+        
+        // Move to next cluster if needed
+        if (count > 0) {
+            cluster = fat32_get_next_cluster(mount, cluster);
+        }
+    }
+    
+    kfree(cluster_buffer);
+    *offset += bytes_read;
+    
+    return bytes_read;
+}
+
+/**
+ * Write to file
+ */
+ssize_t fat32_file_write(vfs_file_t* file, const void* buffer __attribute__((unused)), size_t count __attribute__((unused)), off_t* offset __attribute__((unused))) {
+    fat32_file_t* fat32_file;
+    fat32_mount_t* mount;
+    
+    if (!file || !file->private_data || !buffer || !offset) {
+        return -FAT32_ERR_INVALID_ARG;
+    }
+    
+    fat32_file = (fat32_file_t*)file->private_data;
+    mount = fat32_file->mount;
+    
+    if (mount->read_only) {
+        return -FAT32_ERR_READ_ONLY;
+    }
+    
+    // For now, return error as write implementation is complex
+    // In a full implementation, this would allocate clusters and write data
+    (void)buffer; (void)count; (void)offset;  // Suppress warnings
+    return -FAT32_ERR_NOT_SUPPORTED;
+}
+
+/**
+ * Seek in file
+ */
+off_t fat32_file_seek(vfs_file_t* file, off_t offset, int whence) {
+    fat32_file_t* fat32_file;
+    off_t new_pos;
+    
+    if (!file || !file->private_data) {
+        return -FAT32_ERR_INVALID_ARG;
+    }
+    
+    fat32_file = (fat32_file_t*)file->private_data;
+    
+    switch (whence) {
+        case VFS_SEEK_SET:
+            new_pos = offset;
+            break;
+        case VFS_SEEK_CUR:
+            new_pos = file->position + offset;
+            break;
+        case VFS_SEEK_END:
+            new_pos = file->inode->size + offset;
+            break;
+        default:
+            return -FAT32_ERR_INVALID_ARG;
+    }
+    
+    if (new_pos < 0) {
+        return -FAT32_ERR_INVALID_ARG;
+    }
+    
+    file->position = new_pos;
+    fat32_file->file_position = new_pos;
+    
+    return new_pos;
+}
+
+/**
+ * Sync file
+ */
+int fat32_file_sync(vfs_file_t* file, int datasync __attribute__((unused))) {
+    fat32_file_t* fat32_file;
+    fat32_mount_t* mount;
+    
+    if (!file || !file->private_data) {
+        return FAT32_ERR_INVALID_ARG;
+    }
+    
+    fat32_file = (fat32_file_t*)file->private_data;
+    mount = fat32_file->mount;
+    
+    // Flush cluster cache for this mount
+    fat32_flush_cluster_cache(mount);
+    
+    // Sync buffer cache for the device
+    buffer_cache_sync_device(mount->device_id);
+    
+    return FAT32_SUCCESS;
 }

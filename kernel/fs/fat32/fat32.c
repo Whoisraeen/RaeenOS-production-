@@ -143,7 +143,7 @@ vfs_node_t* fat32_finddir(vfs_node_t* node, const char* name) {
 }
 
 // Placeholder for fat32_open
-static void fat32_open(vfs_node_t* node, uint32_t flags) {
+void fat32_open(vfs_node_t* node, uint32_t flags) {
     // For now, just acknowledge the open call and flags.
     // In a real implementation, this would set up internal file pointers,
     // check permissions based on flags, etc.

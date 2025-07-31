@@ -16,8 +16,7 @@
 #define MAX_PROCESS_FDS 32
 #define MAX_PROCESS_FD 32  // Alias for compatibility
 
-// A process ID is just an integer.
-typedef int pid_t;
+// Process ID is defined in types.h
 
 // Represents the state of a process.
 typedef enum {

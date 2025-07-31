@@ -25,7 +25,7 @@
 #include "../include/errno.h"
 #include "../include/time.h"
 #include "../ipc/pipe.h"
-#include "../sync.h"
+#include "../include/sync.h"
 #include "../include/hal_interface.h"
 
 #ifdef __cplusplus

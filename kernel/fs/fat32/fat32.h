@@ -65,7 +65,7 @@ typedef struct {
 
 // Mount a FAT32 filesystem
 vfs_node_t* fat32_mount(uint8_t* device);
-vfs_node_t* fat32_readdir(vfs_node_t* node, uint32_t index);
+struct dirent* fat32_readdir(vfs_node_t* node, uint32_t index);
 vfs_node_t* fat32_finddir(vfs_node_t* node, const char* name);
 void fat32_open(vfs_node_t* node, uint32_t flags);
 

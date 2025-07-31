@@ -43,6 +43,13 @@ typedef uint64_t phys_addr_t;
 // File offset type
 typedef int64_t off_t;
 
+// POSIX-style types for filesystem operations
+typedef uint32_t dev_t;    // Device identifier
+typedef uint32_t uid_t;    // User identifier
+typedef uint32_t gid_t;    // Group identifier
+typedef uint32_t pid_t;    // Process identifier
+typedef uint32_t mode_t;   // File mode/permissions
+
 // Page size constants
 #define PAGE_SIZE 4096
 #define PAGE_SHIFT 12
@@ -57,5 +64,21 @@ typedef struct mmap_entry {
     uint64_t len;
     uint32_t type;
 } __attribute__((packed)) mmap_entry_t;
+
+// Filesystem statistics structure
+struct statfs {
+    uint32_t f_type;     // Filesystem type
+    uint32_t f_bsize;    // Block size
+    uint64_t f_blocks;   // Total blocks
+    uint64_t f_bfree;    // Free blocks
+    uint64_t f_bavail;   // Available blocks
+    uint64_t f_files;    // Total inodes
+    uint64_t f_ffree;    // Free inodes
+    uint64_t f_fsid;     // Filesystem ID
+    uint32_t f_namelen;  // Maximum filename length
+    uint32_t f_frsize;   // Fragment size
+    uint32_t f_flags;    // Mount flags
+    uint32_t f_spare[4]; // Spare for future use
+};
 
 #endif

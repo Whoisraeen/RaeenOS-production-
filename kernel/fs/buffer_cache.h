@@ -18,7 +18,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "../sync.h"
+#include "../include/sync.h"
 #include "../include/types.h"
 
 #ifdef __cplusplus

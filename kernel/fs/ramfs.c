@@ -1,6 +1,7 @@
 // RaeenOS In-Memory Filesystem (RamFS) Implementation
 
 #include "ramfs.h"
+#include "../string.h"
 
 #include <stddef.h>
 #include "../pmm.h"

@@ -7,6 +7,7 @@
 #include <stddef.h> // For NULL
 #include "../string.h"
 #include "ramfs.h"
+#include "../memory.h"
 
 // The root of the filesystem tree.
 // This will be initialized to a ramdisk or a physical disk filesystem.
@@ -52,15 +53,15 @@ uint32_t vfs_write(vfs_node_t* node, uint32_t offset, uint32_t size, uint8_t* bu
     return 0; // Error or not supported
 }
 
-// Generic VFS open function.
-void vfs_open(vfs_node_t* node, uint32_t flags) {
+// Legacy VFS open function (renamed to avoid conflict with production API)
+void vfs_open_legacy(vfs_node_t* node, uint32_t flags) {
     if (node && node->open) {
         node->open(node, flags);
     }
 }
 
-// Dispatches a close call to the appropriate filesystem driver.
-void vfs_close(vfs_node_t* node) {
+// Legacy VFS close function (renamed to avoid conflict with production API)
+void vfs_close_legacy(vfs_node_t* node) {
     if (node && node->close) {
         node->close(node);
     }
@@ -135,7 +136,24 @@ vfs_node_t* vfs_find(const char* path) {
     return current_node;
 }
 
-// Initializes the VFS by mounting an initial ramdisk as the root.
-void vfs_init() {
+// Legacy VFS initialization (renamed to avoid conflict with production API)
+void vfs_init_legacy() {
     vfs_root = ramfs_init();
 }
+
+// Memory interface compatibility wrappers
+// These functions bridge the gap between basic memory.h and memory_interface.h
+
+#ifndef MEMORY_INTERFACE_H
+// Compatibility wrapper for kmalloc - maps basic signature to production signature
+void* kmalloc_compat(size_t size) {
+    // Use the basic memory interface when memory_interface.h is not included
+    return kmalloc(size);
+}
+
+// Compatibility wrapper for memory_init - maps void return to int return
+void memory_init_compat(void) {
+    // Use the basic memory interface when memory_interface.h is not included
+    memory_init();
+}
+#endif

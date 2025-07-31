@@ -2,10 +2,8 @@
 #define PERMISSIONS_H
 
 #include <stdint.h>
-
-// User and Group IDs
-typedef uint32_t uid_t;
-typedef uint32_t gid_t;
+#include <stdbool.h>
+#include "../include/types.h"
 
 // File permission bits (simplified POSIX-like)
 #define S_IRWXU 00700   // Read, write, execute by owner

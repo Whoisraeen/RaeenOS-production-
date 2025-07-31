@@ -16,7 +16,7 @@
  */
 
 #include "vfs_file_locks.h"
-#include "vfs_production.h"
+#include "vfs.h"
 #include "../memory.h"
 #include "../string.h"
 #include "../include/hal_interface.h"
