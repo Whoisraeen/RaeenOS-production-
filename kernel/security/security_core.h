@@ -192,11 +192,31 @@ int security_unlock_memory(void* ptr, size_t size);
 uint64_t get_system_time(void);
 void kernel_printf(const char* format, ...);
 process_t* current_process(void);
+process_t* find_process(uint32_t pid);
+int snprintf(char* str, size_t size, const char* format, ...);
+
+// HAL feature checks
+#define HAL_FEATURE_SMAP        1
+#define HAL_FEATURE_SMEP        2
+#define HAL_FEATURE_CET         3
+#define HAL_FEATURE_AES_NI      4
+#define HAL_FEATURE_SHA_NI      5
+#define HAL_FEATURE_RDRAND      6
+#define HAL_FEATURE_TPM         7
+#define HAL_FEATURE_MTE         8
+#define HAL_FEATURE_POINTER_AUTH 9
+
+bool hal_has_feature(uint32_t feature);
+int hal_enable_smap(void);
+int hal_enable_smep(void);
+int hal_enable_cet(void);
+int hal_enable_mte(void);
+int hal_get_random(void* buffer, size_t len);
 
 // Security event helpers
-static uint32_t security_generate_event_id(void);
-static const char* security_level_to_string(security_level_t level);
-static capability_t security_action_to_capability(const char* action);
+uint32_t security_generate_event_id(void);
+const char* security_level_to_string(security_level_t level);
+capability_t security_action_to_capability(const char* action);
 
 // Memory protection functions
 int security_enable_aslr(void);
@@ -233,5 +253,10 @@ int security_check_network_access(process_t* process, uint32_t addr, uint16_t po
 #define AUDIT_MASK_LOGIN_ATTEMPT    (1 << 5)
 #define AUDIT_MASK_CRYPTO_OPERATION (1 << 6)
 #define AUDIT_MASK_ALL              (~0U)
+
+// MAC condition flags
+#define MAC_CONDITION_NOT_OWNER     (1 << 0)
+#define MAC_CONDITION_SYSTEM_PATH   (1 << 1)
+#define MAC_CONDITION_BUSINESS_HOURS (1 << 2)
 
 #endif // SECURITY_CORE_H
