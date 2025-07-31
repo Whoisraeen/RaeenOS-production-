@@ -9,7 +9,8 @@ SECURITY_SOURCES = \
 	memory_protection.c \
 	crypto.c \
 	audit.c \
-	ids.c
+	ids.c \
+	network_security.c
 
 # Security framework object files
 SECURITY_OBJECTS = $(SECURITY_SOURCES:.c=.o)
