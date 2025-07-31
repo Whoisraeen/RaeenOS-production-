@@ -1,7 +1,8 @@
 #ifndef WAIT_H
 #define WAIT_H
 
-#include "../process/process.h"
+// Forward declaration to avoid circular dependency
+typedef struct process process_t;
 
 // A wait queue is a list of processes waiting for an event.
 typedef struct wait_queue {

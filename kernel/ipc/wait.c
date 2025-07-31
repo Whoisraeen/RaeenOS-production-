@@ -1,5 +1,6 @@
 #include "../include/wait.h"
 #include "../memory.h"
+#include "../process/process.h"
 
 void wait_queue_init(wait_queue_t** queue) {
     *queue = NULL;
@@ -39,7 +40,7 @@ void wait_queue_remove(wait_queue_t** queue, process_t* process) {
 void wait_queue_wake_all(wait_queue_t** queue) {
     wait_queue_t* current = *queue;
     while (current) {
-        current->process->state = PROCESS_STATE_READY;
+        current->process->state = PROCESS_STATE_RUNNING;
         current = current->next;
     }
 }
@@ -47,7 +48,7 @@ void wait_queue_wake_all(wait_queue_t** queue) {
 void wait_queue_wake_one(wait_queue_t** queue) {
     if (*queue) {
         wait_queue_t* woken_entry = *queue;
-        woken_entry->process->state = PROCESS_STATE_READY;
+        woken_entry->process->state = PROCESS_STATE_RUNNING;
         *queue = woken_entry->next;
         kfree(woken_entry);
     }

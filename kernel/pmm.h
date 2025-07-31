@@ -3,18 +3,9 @@
 #ifndef PMM_H
 #define PMM_H
 
-#include <stdint.h>
-#include <stddef.h>
+#include "include/types.h"
 
 #define PMM_FRAME_SIZE 4096
-
-// GRUB memory map entry structure
-typedef struct {
-    uint32_t size;
-    uint64_t addr;
-    uint64_t len;
-    uint32_t type;
-} __attribute__((packed)) mmap_entry_t;
 
 // Initialize the physical memory manager from a GRUB memory map
 // mmap_addr: The address of the memory map

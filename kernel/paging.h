@@ -3,8 +3,6 @@
 #ifndef PAGING_H
 #define PAGING_H
 
-#include <stdint.h>
-#include <stddef.h>
 #include "include/types.h"
 
 #define PAGE_SIZE 4096

@@ -19,6 +19,7 @@ typedef signed long long int64_t;
 typedef uint32_t size_t;
 typedef int32_t ssize_t;
 typedef int32_t ptrdiff_t;
+typedef uint32_t uintptr_t;  // Pointer-sized integer for 32-bit systems
 
 // Boolean type  
 #ifndef __cplusplus

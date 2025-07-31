@@ -8,7 +8,7 @@
 volatile uint32_t timer_ticks = 0;
 
 // The handler for the timer interrupt.
-void timer_handler(struct registers_t regs) {
+void timer_handler(registers_t* regs) {
     timer_ticks++;
     schedule(); // Call the scheduler this to switch tasks for multitasking.
 }

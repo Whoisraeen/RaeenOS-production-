@@ -6,12 +6,15 @@
 #ifndef _PROCESS_H
 #define _PROCESS_H
 
-#include <stdint.h>
+#include "../include/types.h"
 #include "../paging.h"
 #include "../fs/vfs.h"
+#include "../idt.h"
+#include "../memory.h"
 
 #define MAX_PROCESSES 64
 #define MAX_PROCESS_FDS 32
+#define MAX_PROCESS_FD 32  // Alias for compatibility
 
 // A process ID is just an integer.
 typedef int pid_t;
@@ -20,10 +23,12 @@ typedef int pid_t;
 typedef enum {
     PROCESS_STATE_UNUSED,   // This process slot is free.
     PROCESS_STATE_RUNNING,  // The process is currently running or ready to run.
+    PROCESS_STATE_READY,    // The process is ready to run but not currently running.
     PROCESS_STATE_SLEEPING, // The process is waiting for an event.
     PROCESS_STATE_WAITING,  // The process is waiting for a child to exit.
     PROCESS_STATE_ZOMBIE,   // The process has exited but is waiting for its parent to collect it.
     PROCESS_STATE_BLOCKED,  // The process is blocked on a resource (e.g., semaphore, I/O)
+    PROCESS_STATE_TERMINATED, // The process has been terminated
 } process_state_t;
 
 // Defines the CPU state that is saved and restored during a context switch.
@@ -59,6 +64,7 @@ typedef struct process {
     struct process* parent;         // Pointer to the parent process.
     int exit_code;                  // Exit code, valid when state is ZOMBIE.
     vfs_node_t* fds[MAX_PROCESS_FDS]; // Per-process file descriptor table.
+    vfs_node_t* fd_table[MAX_PROCESS_FDS]; // Alias for compatibility
     thread_t* threads;              // List of threads in this process.
     struct process* next;           // For linked list in ready queue
     int parent_pid;                 // PID of the parent process
@@ -96,5 +102,8 @@ void schedule(void);
 
 // Creates a new thread in the current process.
 thread_t* thread_create(void (*entry_point)(void));
+
+// Assembly function for context switching
+extern void context_switch(uint32_t* old_esp, uint32_t new_esp);
 
 #endif // _PROCESS_H

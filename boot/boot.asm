@@ -14,7 +14,7 @@ MULTIBOOT_PAGE_ALIGN equ 1<<0
 MULTIBOOT_MEMORY_INFO equ 1<<1
 MULTIBOOT_AOUT_KLUDGE equ 1<<16 ; Required for a.out kernels, but good practice
 
-MULTIBOOT_HEADER_MAGIC equ 0x11082000 ; Multiboot 1 magic number
+MULTIBOOT_HEADER_MAGIC equ 0x1BADB002 ; Multiboot 1 magic number
 MULTIBOOT_HEADER_FLAGS equ MULTIBOOT_PAGE_ALIGN | MULTIBOOT_MEMORY_INFO
 MULTIBOOT_CHECKSUM equ -(MULTIBOOT_HEADER_MAGIC + MULTIBOOT_HEADER_FLAGS)
 
@@ -28,7 +28,8 @@ section .multiboot_header
 start:
     ; --- Setup segment registers ---
     ; BIOS loads us with CS:IP = 0x07C0:0x0000. We want DS, ES, SS to point to 0.
-    ; We also need a stack.
+    ; We also need a stack. Also save boot drive number from DL.
+    mov [BOOT_DRIVE], dl ; Save boot drive number that BIOS provides in DL
     xor ax, ax
     mov ds, ax
     mov es, ax
@@ -57,16 +58,19 @@ start:
     mov ebx, 0                 ; Continuation value (must be 0 for first call)
     mov edx, 0x534D4150        ; 'SMAP' magic number
     mov ecx, 24                ; Size of buffer for each entry
-    xor eax, eax               ; Clear EAX for the loop
+    mov dword [mmap_length], 0 ; Initialize entry count
 
 .get_mmap_loop:
-    mov [edi], ecx             ; Store buffer size for current entry
+    mov eax, 0xE820            ; Function code for memory map
+    mov [edi + 20], dword 1    ; Set ACPI attributes (always 1)
     int 0x15                   ; Call BIOS interrupt
     jc .get_mmap_error         ; If carry flag set, error occurred
+    cmp eax, 0x534D4150        ; Check if EAX contains 'SMAP' (success)
+    jne .get_mmap_error        ; If not, error occurred
     add edi, 24                ; Move to next buffer position
     inc dword [mmap_length]    ; Increment entry count
     cmp ebx, 0                 ; Check if more entries exist
-    jne .get_mmap_loop         ; Loop if EAX is not 0 (more entries)
+    jne .get_mmap_loop         ; Loop if EBX is not 0 (more entries)
 
     jmp .mmap_done
 
@@ -80,8 +84,8 @@ start:
     mov si, loading_msg
     call print_string
 
-    mov bx, KERNEL_LOAD_ADDR    ; Set memory address to load kernel
-    mov dh, 16                  ; Number of sectors to read (32 sectors * 512 bytes = 8KB)
+    mov bx, 0x1000              ; Set memory address to load kernel (0x1000:0x0000 = 0x10000)
+    mov dh, 16                  ; Number of sectors to read (16 sectors * 512 bytes = 8KB)
     mov dl, [BOOT_DRIVE]        ; Get boot drive number from BIOS
     call load_disk              ; Call our disk loading function
 
@@ -155,6 +159,7 @@ gdt_start:
 
 ; Code segment descriptor (0x08)
 ; Base = 0, Limit = 0xFFFFF (4GB), Present, DPL=0 (kernel), Executable, Read/Write, 32-bit
+gdt_code:
 CODE_SEG equ gdt_code - gdt_start
     dw 0xFFFF       ; Limit (bits 0-15)
     dw 0x0000       ; Base (bits 0-15)
@@ -165,6 +170,7 @@ CODE_SEG equ gdt_code - gdt_start
 
 ; Data segment descriptor (0x10)
 ; Base = 0, Limit = 0xFFFFF (4GB), Present, DPL=0 (kernel), Read/Write, 32-bit
+gdt_data:
 DATA_SEG equ gdt_data - gdt_start
     dw 0xFFFF
     dw 0x0000
@@ -190,6 +196,9 @@ protected_mode_start:
     mov ss, ax
     mov esp, KERNEL_STACK_TOP ; Set up a temporary kernel stack
 
+    ; Copy kernel from 16-bit load location to final 32-bit location
+    call copy_kernel_to_1mb
+
     ; Pass Multiboot info to kernel_main
     ; EAX = Multiboot magic (0x2BADB002)
     ; EBX = Address of Multiboot info structure
@@ -203,16 +212,26 @@ protected_mode_start:
     ; The kernel will then parse the Multiboot info structure.
     push dword [mmap_length] ; Arg 2: mmap_length
     push dword MEMORY_MAP_BUFFER ; Arg 1: mmap_addr
-    call KERNEL_LOAD_ADDR
+    call 0x100000  ; Call kernel at physical address 0x100000
 
     ; If kernel_main returns (it shouldn't in a real OS), halt.
     cli
     hlt
 
+; --- Copy kernel from 16-bit load location to 1MB ---
+copy_kernel_to_1mb:
+    ; Copy 8KB (16 sectors * 512 bytes) from 0x10000 to 0x100000
+    mov esi, 0x10000        ; Source: where we loaded the kernel in 16-bit mode
+    mov edi, KERNEL_LOAD_ADDR ; Destination: 1MB
+    mov ecx, 2048           ; Copy 8KB (2048 dwords)
+    rep movsd               ; Copy ECX dwords from ESI to EDI
+    ret
+
 ; --- Constants ---
-KERNEL_LOAD_ADDR equ 0x100000 ; Load kernel at 1MB (after bootloader and initial data)
-MEMORY_MAP_BUFFER equ 0x8000   ; Buffer for memory map entries (below 1MB)
-KERNEL_STACK_TOP equ 0x70000   ; Temporary stack for protected mode
+KERNEL_LOAD_SEGMENT equ 0x1000    ; Load kernel at segment 0x1000 (0x10000 physical)
+KERNEL_LOAD_ADDR equ 0x100000     ; Final kernel address at 1MB
+MEMORY_MAP_BUFFER equ 0x8000      ; Buffer for memory map entries (below 1MB)
+KERNEL_STACK_TOP equ 0x70000      ; Temporary stack for protected mode
 
 ; --- Data ---
 BOOT_DRIVE db 0

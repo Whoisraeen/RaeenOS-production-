@@ -4,19 +4,20 @@
 #include "../vga.h"
 #include "../pmm.h"
 #include "../paging.h"
+#include "../memory.h"     // For kmalloc/kfree
 #include <stddef.h>       // For NULL
 #include "string.h"       // For memset
 
 
 
 // The process table
-static process_t process_table[MAX_PROCESSES];
+process_t process_table[MAX_PROCESSES];
 
 // The currently running process
 volatile process_t* current_process = NULL;
 
 // The ready queues for each priority level
-static process_t* ready_queues[NUM_PRIORITY_LEVELS];
+process_t* ready_queues[NUM_PRIORITY_LEVELS];
 
 // The next available Process ID
 static uint32_t next_pid = 0;
@@ -37,7 +38,7 @@ void process_init(void) {
     current_process->pid = next_pid++;
     current_process->state = PROCESS_STATE_RUNNING;
     current_process->priority_class = PRIORITY_CLASS_REALTIME; // Kernel is real-time
-    memset(&current_process->cpu_state, 0, sizeof(cpu_state_t));
+    memset((void*)&current_process->cpu_state, 0, sizeof(cpu_state_t));
     current_process->page_directory = paging_get_kernel_directory(); // From paging.c
 
     // Initialize the ready queues
@@ -59,7 +60,8 @@ process_t* process_create(void (*entry_point)(void)) {
             p->priority_class = PRIORITY_CLASS_NORMAL; // Default priority for new processes
 
             // Initialize file descriptor table
-            for (int j = 0; j < MAX_PROCESS_FD; ++j) {
+            for (int j = 0; j < MAX_PROCESS_FDS; ++j) {
+                p->fds[j] = NULL;
                 p->fd_table[j] = NULL;
             }
 
