@@ -1,9 +1,9 @@
 /**
  * @file hal_stub.c
- * @brief Hardware Abstraction Layer Stub Implementation
+ * @brief Hardware Abstraction Layer Integration
  * 
- * This provides stub implementations for HAL functions used by the kernel.
- * In a production system, these would be implemented per-architecture.
+ * This file integrates the production HAL implementation with the kernel.
+ * It initializes the HAL system and provides backward compatibility.
  * 
  * @version 1.0
  * @date 2025-07-31
@@ -12,102 +12,116 @@
 #include "include/hal_interface.h"
 #include "include/types.h"
 
-// Stub HAL operations
-static int stub_cpu_init(void) {
-    return 0;
+// Include production HAL components
+extern int hal_init(void);
+extern void hal_shutdown(void);
+
+// Global HAL pointer (defined in hal_core.c)
+extern hal_operations_t* hal;
+
+/**
+ * Initialize the HAL system for kernel use
+ * This should be called early in kernel initialization
+ */
+int kernel_hal_init(void)
+{
+    // Initialize the production HAL
+    int result = hal_init();
+    if (result != HAL_SUCCESS) {
+        // HAL initialization failed - system cannot continue
+        return result;
+    }
+    
+    // Verify HAL is properly initialized
+    if (!hal) {
+        return -1;
+    }
+    
+    // Initialize HAL subsystems
+    if (hal->cpu_init) {
+        result = hal->cpu_init();
+        if (result != HAL_SUCCESS) {
+            return result;
+        }
+    }
+    
+    if (hal->irq_init) {
+        result = hal->irq_init();
+        if (result != HAL_SUCCESS) {
+            return result;
+        }
+    }
+    
+    if (hal->timer_init) {
+        result = hal->timer_init();
+        if (result != HAL_SUCCESS) {
+            return result;
+        }
+    }
+    
+    return HAL_SUCCESS;
 }
 
-static void stub_cpu_idle(void) {
-    __asm__ volatile("hlt");
+/**
+ * Shutdown the HAL system
+ */
+void kernel_hal_shutdown(void)
+{
+    if (hal && hal->shutdown) {
+        hal->shutdown();
+    }
+    
+    hal_shutdown();
 }
 
-static void stub_cpu_halt(void) {
-    __asm__ volatile("hlt");
+/**
+ * Get HAL version information
+ */
+void kernel_hal_get_version(uint32_t* major, uint32_t* minor, uint32_t* api_version)
+{
+    if (major) *major = 1;
+    if (minor) *minor = 0;
+    if (api_version) *api_version = HAL_API_VERSION;
 }
 
-static uint64_t stub_cpu_timestamp(void) {
-    // Simple counter for now
-    static uint64_t counter = 0;
-    return ++counter;
-}
+// Backward compatibility - Legacy function names that may be used by existing kernel code
+// These redirect to the new HAL interface
 
-static void* stub_mem_alloc_pages(size_t pages) {
-    // This would interact with the PMM
+void* legacy_mem_alloc_pages(size_t pages) {
+    if (hal && hal->mem_alloc_pages) {
+        return hal->mem_alloc_pages(pages, HAL_MEM_READ | HAL_MEM_WRITE);
+    }
     return NULL;
 }
 
-static void stub_mem_free_pages(void* addr, size_t pages) {
-    // This would interact with the PMM
+void legacy_mem_free_pages(void* addr, size_t pages) {
+    if (hal && hal->mem_free_pages) {
+        hal->mem_free_pages(addr, pages);
+    }
 }
 
-static int stub_mem_map_physical(uint64_t phys, uint64_t virt, size_t size, uint32_t flags) {
-    // This would set up page tables
+uint8_t legacy_io_read8(uint16_t port) {
+    if (hal && hal->io_read8) {
+        return hal->io_read8(port);
+    }
     return 0;
 }
 
-static int stub_irq_register(int irq, void (*handler)(void)) {
-    // This would set up interrupt handlers
+void legacy_io_write8(uint16_t port, uint8_t value) {
+    if (hal && hal->io_write8) {
+        hal->io_write8(port, value);
+    }
+}
+
+unsigned long legacy_irq_save(void) {
+    if (hal && hal->irq_save) {
+        return hal->irq_save();
+    }
     return 0;
 }
 
-static void stub_irq_enable(int irq) {
-    // This would enable specific interrupt
+void legacy_irq_restore(unsigned long flags) {
+    if (hal && hal->irq_restore) {
+        hal->irq_restore(flags);
+    }
 }
-
-static void stub_irq_disable(int irq) {
-    // This would disable specific interrupt
-}
-
-static uint8_t stub_io_read8(uint16_t port) {
-    uint8_t result;
-    __asm__ volatile("inb %1, %0" : "=a"(result) : "Nd"(port));
-    return result;
-}
-
-static uint16_t stub_io_read16(uint16_t port) {
-    uint16_t result;
-    __asm__ volatile("inw %1, %0" : "=a"(result) : "Nd"(port));
-    return result;
-}
-
-static uint32_t stub_io_read32(uint16_t port) {
-    uint32_t result;
-    __asm__ volatile("inl %1, %0" : "=a"(result) : "Nd"(port));
-    return result;
-}
-
-static void stub_io_write8(uint16_t port, uint8_t value) {
-    __asm__ volatile("outb %0, %1" : : "a"(value), "Nd"(port));
-}
-
-static void stub_io_write16(uint16_t port, uint16_t value) {
-    __asm__ volatile("outw %0, %1" : : "a"(value), "Nd"(port));
-}
-
-static void stub_io_write32(uint16_t port, uint32_t value) {
-    __asm__ volatile("outl %0, %1" : : "a"(value), "Nd"(port));
-}
-
-// Global HAL operations structure
-static hal_ops_t stub_hal_ops = {
-    .cpu_init = stub_cpu_init,
-    .cpu_idle = stub_cpu_idle,
-    .cpu_halt = stub_cpu_halt,
-    .cpu_timestamp = stub_cpu_timestamp,
-    .mem_alloc_pages = stub_mem_alloc_pages,
-    .mem_free_pages = stub_mem_free_pages,
-    .mem_map_physical = stub_mem_map_physical,
-    .irq_register = stub_irq_register,
-    .irq_enable = stub_irq_enable,
-    .irq_disable = stub_irq_disable,
-    .io_read8 = stub_io_read8,
-    .io_read16 = stub_io_read16,
-    .io_read32 = stub_io_read32,
-    .io_write8 = stub_io_write8,
-    .io_write16 = stub_io_write16,
-    .io_write32 = stub_io_write32,
-    .platform_data = NULL
-};
-
-// Global HAL pointer
-hal_ops_t* hal = &stub_hal_ops;
