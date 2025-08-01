@@ -316,3 +316,6 @@ mount/
 !scripts/*.py
 !tools/*.sh
 !tools/*.py
+
+# Exception: AI Tools
+.claude
