@@ -20,12 +20,8 @@
  * @date 2025-07-31
  */
 
-#include <stdint.h>
-#include <stddef.h>
-#include <stdbool.h>
 #include "types.h"
 #include "include/sync.h"
-#include "memory_interface.h"
 #include "pmm_production.h"
 
 #ifdef __cplusplus

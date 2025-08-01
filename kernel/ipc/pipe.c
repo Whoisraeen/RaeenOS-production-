@@ -2,11 +2,8 @@
 
 #include "pipe.h"
 #include "../pmm_production.h"
-#include "../vmm_production.h"
 #include "../process/process.h"
-#include "../include/sync.h"
 #include "../string.h"
-#include <stddef.h>
 
 pipe_t* pipe_create(void) {
     size_t size = PIPE_DEFAULT_SIZE;
