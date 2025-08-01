@@ -2,7 +2,7 @@
 
 #include "window.h"
 #include "graphics.h"
-#include "memory/pmm.h"
+#include "pmm.h"
 #include "mouse.h"
 #include "ui/widget.h"
 #include "font.h"

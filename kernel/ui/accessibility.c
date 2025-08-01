@@ -1,5 +1,5 @@
 #include "accessibility.h"
-#include "../../vga.h"
+#include "../vga.h"
 
 static bool screen_reader_enabled = false;
 

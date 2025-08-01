@@ -1,6 +1,6 @@
 #include "i18n.h"
-#include "../../vga.h"
-#include "../../string.h"
+#include "../vga.h"
+#include "../string.h"
 
 static const char* current_locale = "en_US"; // Default locale
 

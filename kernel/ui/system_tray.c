@@ -1,6 +1,6 @@
 #include "system_tray.h"
-#include "../../graphics.h"
-#include "../../string.h"
+#include "../graphics.h"
+#include "../string.h"
 
 void system_tray_init(void) {
     // Nothing specific to initialize for now

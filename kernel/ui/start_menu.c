@@ -1,6 +1,6 @@
 #include "start_menu.h"
-#include "../../graphics.h"
-#include "../../string.h"
+#include "../graphics.h"
+#include "../string.h"
 
 static bool is_visible = false;
 

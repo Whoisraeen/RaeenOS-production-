@@ -1,6 +1,6 @@
 #include "file_explorer.h"
-#include "../../vga.h"
-#include "../../string.h"
+#include "../vga.h"
+#include "../string.h"
 
 void file_explorer_init(void) {
     vga_puts("File explorer initialized (placeholder).\n");

@@ -1,5 +1,5 @@
 #include "taskbar.h"
-#include "../../graphics.h"
+#include "../graphics.h"
 
 void taskbar_init(void) {
     // Nothing specific to initialize for now

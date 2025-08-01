@@ -5,7 +5,7 @@
 #include "pmm.h"
 #include "include/multiboot.h"
 #include "include/driver.h"
-#include "drivers/pci/pci_driver.h"
+#include "../drivers/pci/pci_driver.h"
 
 #include "string.h"
 #include "syscall.h"

@@ -5,9 +5,10 @@
 #define TERMINAL_H
 
 #include "widget.h"
+#include "../ipc/pipe.h"
 
 // Function to create a new terminal widget
-widget_t* terminal_create(window_t* parent, int x, int y, int width, int height);
+widget_t* terminal_create(struct window_t* parent, int x, int y, int width, int height);
 
 // Function to handle keyboard input for the terminal
 void terminal_handle_keypress(widget_t* terminal, char c);

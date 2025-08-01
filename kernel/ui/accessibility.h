@@ -2,6 +2,7 @@
 #define ACCESSIBILITY_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 // Initialize accessibility features
 void accessibility_init(void);

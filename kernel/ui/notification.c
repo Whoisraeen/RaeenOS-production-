@@ -1,6 +1,6 @@
 #include "notification.h"
-#include "../../graphics.h"
-#include "../../string.h"
+#include "../graphics.h"
+#include "../string.h"
 
 void notification_init(void) {
     // Nothing specific to initialize for now

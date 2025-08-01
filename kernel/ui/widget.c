@@ -2,22 +2,23 @@
 
 #include "widget.h"
 #include "../window.h"
-#include "../memory/pmm.h"
+#include "../pmm.h"
 #include "../string.h"
+#include "../memory.h"
+#include "../font.h"
 #include <stddef.h>
 #include "terminal.h" // For draw_terminal
 
 // Forward declarations for internal drawing functions
-static void draw_button(widget_t* widget, window_t* parent);
-static void draw_label(widget_t* widget, window_t* parent);
-static void draw_textbox(widget_t* widget, window_t* parent);
-static void draw_layout(layout_t* layout, window_t* parent);
-static void draw_slider(widget_t* widget, window_t* parent);
+static void draw_button(widget_t* widget, struct window_t* parent);
+static void draw_label(widget_t* widget, struct window_t* parent);
+static void draw_textbox(widget_t* widget, struct window_t* parent);
+static void draw_slider(widget_t* widget, struct window_t* parent);
 
 /**
  * @brief Creates a new widget and adds it to a parent window.
  */
-widget_t* widget_create(window_t* parent, widget_type_t type, int x, int y, int width, int height, const char* text) {
+widget_t* widget_create(struct window_t* parent, widget_type_t type, int x, int y, int width, int height, const char* text) {
     if (!parent) return NULL;
 
     widget_t* widget = (widget_t*)pmm_alloc_frame();
@@ -70,7 +71,7 @@ widget_t* widget_create(window_t* parent, widget_type_t type, int x, int y, int 
 /**
  * @brief Draws a single button widget.
  */
-static void draw_button(widget_t* widget, window_t* parent) {
+static void draw_button(widget_t* widget, struct window_t* parent) {
     // Draw button background
     window_draw_rect(parent, widget->x, widget->y, widget->width, widget->height, 0x00AAAAAA);
 
@@ -86,7 +87,7 @@ static void draw_button(widget_t* widget, window_t* parent) {
 /**
  * @brief Draws a label widget.
  */
-static void draw_label(widget_t* widget, window_t* parent) {
+static void draw_label(widget_t* widget, struct window_t* parent) {
     if (widget->text) {
         window_draw_string(parent, widget->x, widget->y, widget->text, 0xFFFFFFFF);
     }
@@ -95,7 +96,7 @@ static void draw_label(widget_t* widget, window_t* parent) {
 /**
  * @brief Draws a textbox widget.
  */
-static void draw_textbox(widget_t* widget, window_t* parent) {
+static void draw_textbox(widget_t* widget, struct window_t* parent) {
     // Draw textbox background
     window_draw_rect(parent, widget->x, widget->y, widget->width, widget->height, 0xFFFFFFFF);
 
@@ -114,7 +115,7 @@ static void draw_textbox(widget_t* widget, window_t* parent) {
 /**
  * @brief Draws a slider widget.
  */
-static void draw_slider(widget_t* widget, window_t* parent) {
+static void draw_slider(widget_t* widget, struct window_t* parent) {
     // Draw slider track
     window_draw_rect(parent, widget->x, widget->y + widget->height / 2 - 1, widget->width, 2, 0x00888888);
 
@@ -125,7 +126,7 @@ static void draw_slider(widget_t* widget, window_t* parent) {
 /**
  * @brief Draws a single widget.
  */
-void widget_draw(widget_t* widget, window_t* parent) {
+void widget_draw(widget_t* widget, struct window_t* parent) {
     if (!widget || !parent || !widget->draw) return;
 
     // Call the widget's specific draw function
@@ -133,48 +134,23 @@ void widget_draw(widget_t* widget, window_t* parent) {
 }
 
 /**
- * @brief Draws a layout and its contained widgets.
- */
-static void draw_layout(layout_t* layout, window_t* parent) {
-    if (!layout || !parent) return;
-
-    int current_y = layout->padding;
-    widget_t* current_widget = layout->widgets;
-
-    while (current_widget) {
-        // For now, only vertical box layout
-        current_widget->y = current_y;
-        current_widget->x = layout->padding;
-
-        widget_draw(current_widget, parent);
-        current_y += current_widget->height + layout->spacing;
-        current_widget = current_widget->next;
-    }
-}
-
-/**
  * @brief Draws all widgets associated with a window.
  */
-void widget_draw_all(window_t* parent) {
+void widget_draw_all(struct window_t* parent) {
     if (!parent) return;
 
-    // If the window has a layout, draw it
-    if (parent->layout) {
-        draw_layout(parent->layout, parent);
-    } else {
-        // Otherwise, draw individual widgets
-        widget_t* current = parent->widgets;
-        while (current) {
-            widget_draw(current, parent);
-            current = current->next;
-        }
+    // Draw individual widgets
+    widget_t* current = parent->widgets;
+    while (current) {
+        widget_draw(current, parent);
+        current = current->next;
     }
 }
 
 /**
  * @brief Finds a widget within a window at the given window-local coordinates.
  */
-widget_t* widget_find_at_coords(window_t* parent, int x, int y) {
+widget_t* widget_find_at_coords(struct window_t* parent, int x, int y) {
     if (!parent) return NULL;
 
     widget_t* current = parent->widgets;

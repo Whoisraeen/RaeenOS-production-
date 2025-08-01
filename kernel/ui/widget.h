@@ -57,13 +57,19 @@ typedef struct widget_t widget_t;
 widget_t* widget_create(struct window_t* parent, widget_type_t type, int x, int y, int width, int height, const char* text);
 
 /**
- * @brief Draws a single widget within its parent window's buffer.
+ * @brief Draws a single widget within its parent window.
  *
  * @param widget The widget to draw.
- * @param parent_buffer The framebuffer of the parent window.
- * @param parent_width The width of the parent window.
+ * @param parent The parent window.
  */
-void widget_draw(widget_t* widget, uint32_t* parent_buffer, int parent_width);
+void widget_draw(widget_t* widget, struct window_t* parent);
+
+/**
+ * @brief Draws all widgets associated with a window.
+ *
+ * @param parent The window whose widgets to draw.
+ */
+void widget_draw_all(struct window_t* parent);
 
 /**
  * @brief Finds a widget within a window at the given window-local coordinates.

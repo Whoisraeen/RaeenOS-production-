@@ -1,5 +1,5 @@
 #include "ime.h"
-#include "../../vga.h"
+#include "../vga.h"
 
 static ime_context_t current_ime_context;
 

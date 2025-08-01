@@ -29,7 +29,7 @@ typedef struct {
 
 // --- Public API Implementation ---
 
-widget_t* terminal_create(window_t* parent, int x, int y, int width, int height) {
+widget_t* terminal_create(struct window_t* parent, int x, int y, int width, int height) {
     // Create the generic widget
     widget_t* terminal_widget = widget_create(parent, WIDGET_TYPE_TERMINAL, x, y, width, height, NULL);
     if (!terminal_widget) return NULL;
@@ -48,8 +48,8 @@ widget_t* terminal_create(window_t* parent, int x, int y, int width, int height)
     state->bg_color = 0xFF000000; // Black
 
     // Create pipes for communication
-    state->pipe_in = pipe_create(4096);
-    state->pipe_out = pipe_create(4096);
+    state->pipe_in = pipe_create();
+    state->pipe_out = pipe_create();
     if (!state->pipe_in || !state->pipe_out) {
         if (state->pipe_in) pipe_destroy(state->pipe_in);
         if (state->pipe_out) pipe_destroy(state->pipe_out);
@@ -71,7 +71,7 @@ void terminal_handle_keypress(widget_t* terminal, char c) {
 
     // Write the character to the output pipe (to be read by the shell)
     if (state->pipe_out) {
-        pipe_write(state->pipe_out, &c, 1);
+        pipe_write(state->pipe_out, (const uint8_t*)&c, 1);
     }
 }
 
@@ -81,7 +81,7 @@ void terminal_process_input(widget_t* terminal) {
     if (!state->pipe_in) return;
 
     char c;
-    while (pipe_read(state->pipe_in, &c, 1) > 0) {
+    while (pipe_read(state->pipe_in, (uint8_t*)&c, 1) > 0) {
         // This is where the old terminal_handle_keypress logic goes
         if (c == '\n') {
             state->cursor_x = 0;
@@ -127,7 +127,7 @@ pipe_t* terminal_get_output_pipe(widget_t* terminal) {
 
 // --- Drawing Logic (to be called by widget_draw) ---
 
-void draw_terminal(widget_t* widget, window_t* parent) {
+void draw_terminal(widget_t* widget, struct window_t* parent) {
     if (!widget || !widget->text || !parent) return;
 
     terminal_state_t* state = (terminal_state_t*)widget->text;
