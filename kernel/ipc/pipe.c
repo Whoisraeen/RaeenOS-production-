@@ -1,21 +1,23 @@
 // RaeenOS Pipe IPC Implementation - Source
 
 #include "pipe.h"
-#include "../pmm.h"
-#include "../vmm.h" // For PAGE_SIZE
+#include "../pmm_production.h"
+#include "../vmm_production.h"
+#include "../process/process.h"
+#include "../include/sync.h"
 #include "../string.h"
 #include <stddef.h>
 
 pipe_t* pipe_create(void) {
     size_t size = PIPE_DEFAULT_SIZE;
-    pipe_t* pipe = (pipe_t*)pmm_alloc_frame();
+    pipe_t* pipe = (pipe_t*)pmm_alloc_page(GFP_KERNEL, -1);
     if (!pipe) {
         return NULL;
     }
 
-        pipe->buffer = (uint8_t*)pmm_alloc_frames((size + PAGE_SIZE - 1) / PAGE_SIZE);
+    pipe->buffer = (uint8_t*)pmm_alloc_pages((size + PAGE_SIZE - 1) / PAGE_SIZE, GFP_KERNEL, -1);
     if (!pipe->buffer) {
-        pmm_free_frame(pipe);
+        pmm_free_page(pipe);
         return NULL;
     }
 
@@ -80,7 +82,7 @@ int pipe_write(pipe_t* pipe, const uint8_t* buf, int count) {
 void pipe_destroy(pipe_t* pipe) {
     if (!pipe) return;
     if (pipe->buffer) {
-        pmm_free_frames(pipe->buffer, (pipe->size + PAGE_SIZE - 1) / PAGE_SIZE);
+        pmm_free_pages(pipe->buffer, (pipe->size + PAGE_SIZE - 1) / PAGE_SIZE);
     }
-    pmm_free_frame(pipe);
+    pmm_free_page(pipe);
 }

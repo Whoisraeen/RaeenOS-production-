@@ -243,3 +243,8 @@ void schedule(void) {
         context_switch(&prev_proc->esp, next_proc->esp);
     }
 }
+
+// Gets the currently running process.
+process_t* get_current_process(void) {
+    return (process_t*)current_process;
+}

@@ -2,12 +2,12 @@
 #include "../../kernel/process/process.h"
 #include "../../kernel/vga.h"
 
-void semaphore_init(semaphore_t* sem, int32_t initial_count) {
+void ipc_semaphore_init(ipc_semaphore_t* sem, int32_t initial_count) {
     sem->count = initial_count;
     wait_queue_init(&sem->wait_queue);
 }
 
-void semaphore_wait(semaphore_t* sem) {
+void ipc_semaphore_wait(ipc_semaphore_t* sem) {
     // Disable interrupts to prevent race conditions
     asm volatile("cli");
 
@@ -22,7 +22,7 @@ void semaphore_wait(semaphore_t* sem) {
     asm volatile("sti"); // Re-enable interrupts
 }
 
-void semaphore_signal(semaphore_t* sem) {
+void ipc_semaphore_signal(ipc_semaphore_t* sem) {
     // Disable interrupts to prevent race conditions
     asm volatile("cli");
 

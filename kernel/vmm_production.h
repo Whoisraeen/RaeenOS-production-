@@ -24,6 +24,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include "types.h"
+#include "include/sync.h"
 #include "memory_interface.h"
 #include "pmm_production.h"
 
@@ -265,6 +266,21 @@ typedef struct vmm_manager {
     
     spinlock_t global_lock;
 } vmm_manager_t;
+
+// VMM statistics structure
+struct vm_stats {
+    uint64_t total_vm;          // Total virtual memory
+    uint64_t locked_vm;         // Locked virtual memory  
+    uint64_t resident_pages;    // Resident pages
+    uint64_t shared_pages;      // Shared pages
+    uint64_t executable_pages;  // Executable pages
+    uint64_t page_faults;       // Total page faults
+    uint64_t major_faults;      // Major page faults
+    uint64_t minor_faults;      // Minor page faults
+    uint64_t cow_faults;        // Copy-on-write faults
+    uint64_t swap_in;           // Pages swapped in
+    uint64_t swap_out;          // Pages swapped out
+};
 
 // Global VMM manager
 extern vmm_manager_t* vmm;

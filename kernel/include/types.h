@@ -41,11 +41,19 @@ typedef signed long long int64_t;
 // Standard C types - use standard definitions if available
 #ifndef _SIZE_T_DEFINED
 #ifndef __SIZE_T
+#ifndef _SIZE_T
 typedef uint32_t size_t;
 #endif
 #endif
+#endif
+#ifndef _SSIZE_T_DEFINED
 typedef int32_t ssize_t;
+#endif
+#ifndef _PTRDIFF_T
+#ifndef __PTRDIFF_T
 typedef int32_t ptrdiff_t;
+#endif
+#endif
 
 // Pointer-sized integer - use standard if available
 #ifndef _UINTPTR_T_DEFINED

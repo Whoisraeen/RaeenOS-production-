@@ -21,6 +21,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include "types.h"
+#include "include/sync.h"
 #include "memory_interface.h"
 
 #ifdef __cplusplus
@@ -90,8 +91,8 @@ typedef struct page {
     void* private;
 } page_t;
 
-// NUMA node descriptor
-typedef struct numa_node {
+// PMM NUMA node descriptor (renamed to avoid conflict with memory_interface.h)
+typedef struct pmm_numa_node {
     unsigned int node_id;           // Node ID
     unsigned long start_pfn;        // Start page frame number
     unsigned long end_pfn;          // End page frame number
@@ -118,7 +119,7 @@ typedef struct numa_node {
     } stats;
     
     spinlock_t lock;
-} numa_node_t;
+} pmm_numa_node_t;
 
 // Memory zone descriptor
 typedef struct mem_zone {
@@ -169,7 +170,7 @@ typedef struct pmm_manager {
     unsigned int nr_zones;         // Number of active zones
     
     // NUMA nodes
-    numa_node_t nodes[PMM_MAX_NUMA_NODES];
+    pmm_numa_node_t nodes[PMM_MAX_NUMA_NODES];
     unsigned int nr_nodes;         // Number of NUMA nodes
     
     // Page frame array
@@ -219,6 +220,19 @@ typedef struct pmm_manager {
     spinlock_t global_lock;        // Global PMM lock
     
 } pmm_manager_t;
+
+// Zone statistics structure
+struct zone_stats {
+    unsigned long total_pages;      // Total pages in zone
+    unsigned long free_pages;       // Free pages in zone  
+    unsigned long used_pages;       // Used pages in zone
+    unsigned long min_pages;        // Minimum watermark
+    unsigned long low_pages;        // Low watermark
+    unsigned long high_pages;       // High watermark
+    unsigned long allocations;      // Total allocations
+    unsigned long failures;         // Allocation failures
+    unsigned long reclaimed;        // Pages reclaimed
+};
 
 // Global PMM manager instance
 extern pmm_manager_t* pmm;
