@@ -16,10 +16,8 @@
 #ifndef BUFFER_CACHE_H
 #define BUFFER_CACHE_H
 
-#include <stdint.h>
-#include <stdbool.h>
-#include "../include/sync.h"
 #include "../include/types.h"
+#include "../include/sync.h"
 
 #ifdef __cplusplus
 extern "C" {

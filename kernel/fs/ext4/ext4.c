@@ -27,6 +27,8 @@
 // EXT4 specific constants
 #define EXT4_N_BLOCKS           15
 #define EXT4_EXT_MAGIC          0xF30A
+#define EXT4_DYNAMIC_REV        1
+#define MS_RDONLY               1
 #define EXT4_EXTENT_TAIL_OFFSET(hdr) \
     (sizeof(ext4_extent_header_t) + (sizeof(ext4_extent_t) * (hdr)->eh_max))
 
@@ -369,7 +371,7 @@ vfs_superblock_t* ext4_mount_fs(const char* device, uint32_t flags, const void* 
     spinlock_init(&sb->lock);
     
     // Generate filesystem mounted event
-    vfs_event_generate(VFS_EVENT_MOUNT, NULL, NULL, device, 
+    vfs_event_generate(VFS_NOTIFY_CREATE, NULL, NULL, device, 
                       VFS_EVENT_PRIORITY_NORMAL, NULL, 0);
     
     return sb;
@@ -406,7 +408,7 @@ void ext4_unmount_fs(vfs_superblock_t* sb) {
     }
     
     // Generate filesystem unmounted event
-    vfs_event_generate(VFS_EVENT_UNMOUNT, NULL, NULL, NULL, 
+    vfs_event_generate(VFS_NOTIFY_DELETE, NULL, NULL, NULL, 
                       VFS_EVENT_PRIORITY_NORMAL, NULL, 0);
     
     kfree(mount);

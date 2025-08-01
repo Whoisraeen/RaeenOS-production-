@@ -10,7 +10,6 @@
 #include "../memory.h"
 #include "../string.h"
 #include "../include/hal_interface.h"
-#include <stdatomic.h>
 
 // Hash table for buffer lookup
 static buffer_head_t* buffer_hash_table[BUFFER_HASH_BUCKETS];
@@ -726,6 +725,45 @@ uint32_t buffer_cache_dirty_ratio(void) {
         return 0;
     }
     return (buffer_cache_stats.dirty_buffers * 100) / buffer_cache_stats.cached_buffers;
+}
+
+/**
+ * Writeback thread for async buffer synchronization
+ */
+static int buffer_writeback_thread(void* arg) {
+    (void)arg; // Unused parameter
+    
+    while (1) {
+        // Check if we have too many dirty buffers
+        if (buffer_cache_stats.dirty_buffers > buffer_cache_config.max_dirty_buffers) {
+            // Write back some dirty buffers
+            buffer_head_t* bh = dirty_buffer_tail;
+            int written = 0;
+            
+            while (bh && written < 32) { // Write back up to 32 buffers at a time
+                buffer_head_t* prev = bh->dirty_prev;
+                
+                // Skip if buffer is locked or being written
+                if (!(bh->flags & (BUFFER_FLAG_LOCKED | BUFFER_FLAG_WRITEBACK))) {
+                    if (buffer_cache_write(bh) == BUFFER_SUCCESS) {
+                        written++;
+                    }
+                }
+                
+                bh = prev;
+            }
+        }
+        
+        // Sleep for writeback interval
+        // TODO: Replace with proper kernel sleep function
+        // For now, we'll use a simple delay loop
+        volatile int delay = buffer_cache_config.writeback_interval * 1000;
+        while (delay--) {
+            cpu_relax();
+        }
+    }
+    
+    return 0;
 }
 
 /**

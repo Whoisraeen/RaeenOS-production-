@@ -7,7 +7,7 @@
 #include "include/event.h"
 
 // Holds the state of the mouse
-struct mouse_state_t {
+typedef struct mouse_state_t {
     int32_t x;
     int32_t y;
     uint8_t left_button;

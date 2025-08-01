@@ -13,7 +13,24 @@
  */
 
 #include "types.h"
+#ifndef __KERNEL__
 #include <stdatomic.h>
+#else
+// In kernel mode, define our own atomic types based on compiler intrinsics
+#define _Atomic volatile
+#define atomic_load(ptr) (*(ptr))
+#define atomic_store(ptr, val) (*(ptr) = (val))
+#define atomic_fetch_add(ptr, val) __sync_fetch_and_add(ptr, val)
+#define atomic_fetch_sub(ptr, val) __sync_fetch_and_sub(ptr, val)
+#define atomic_fetch_or(ptr, val) __sync_fetch_and_or(ptr, val)
+#define atomic_fetch_and(ptr, val) __sync_fetch_and_and(ptr, val)
+#define atomic_compare_exchange_strong(ptr, expected, desired) \
+    __sync_bool_compare_and_swap(ptr, *(expected), desired)
+#define atomic_thread_fence(order) __sync_synchronize()
+#define memory_order_seq_cst 0
+#define memory_order_acquire 0
+#define memory_order_release 0
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -82,6 +99,12 @@ struct rb_node {
 struct rb_root {
     struct rb_node* rb_node;
 };
+
+// Spinlock initialization macro
+#define SPINLOCK_INIT { .locked = 0, .name = NULL, .cpu_id = 0, .caller = NULL }
+
+// Atomic initialization macro
+#define ATOMIC_INIT(val) (val)
 
 // Spinlock operations
 void spinlock_init(spinlock_t* lock);

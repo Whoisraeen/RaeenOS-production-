@@ -38,9 +38,9 @@ vfs_event_config_t vfs_event_config = {
 
 // Event system state
 static bool event_system_initialized = false;
-static uint64_t next_event_id = 1;
-static uint64_t next_watcher_id = 1;
-static uint64_t event_sequence = 0;
+static atomic_t next_event_id = ATOMIC_INIT(1);
+static atomic_t next_watcher_id = ATOMIC_INIT(1);
+static atomic_t event_sequence = ATOMIC_INIT(0);
 
 // Watcher management
 vfs_event_watcher_t* vfs_event_watchers = NULL;
@@ -71,9 +71,10 @@ static vfs_event_t* alloc_event_from_pool(void);
 static void free_event_to_pool(vfs_event_t* event);
 static void deliver_event_to_watchers(vfs_event_t* event);
 static bool should_rate_limit_event(uint32_t event_type);
-static void update_event_rate(void);
 static int pattern_match(const char* pattern, const char* string);
-static void event_gc_worker(void);
+// TODO: Implement these functions when needed
+// static void update_event_rate(void);
+// static void event_gc_worker(void);
 
 /**
  * Initialize the filesystem event system
@@ -93,9 +94,9 @@ int vfs_events_init(const vfs_event_config_t* config) {
     flags = HAL_IRQ_SAVE();
     
     // Initialize global state
-    next_event_id = 1;
-    next_watcher_id = 1;
-    event_sequence = 0;
+    atomic_set(&next_event_id, 1);
+    atomic_set(&next_watcher_id, 1);
+    atomic_set(&event_sequence, 0);
     active_watcher_count = 0;
     
     // Initialize locks
@@ -192,14 +193,14 @@ static vfs_event_t* alloc_event_from_pool(void) {
     unsigned long flags;
     
     flags = HAL_IRQ_SAVE();
-    spinlock_lock(&event_pool_lock);
+    spin_lock(&event_pool_lock);
     
     if (event_free_list) {
         event = event_free_list;
         event_free_list = event->pool_next;
         atomic_inc(&events_allocated);
         
-        spinlock_unlock(&event_pool_lock);
+        spin_unlock(&event_pool_lock);
         HAL_IRQ_RESTORE(flags);
         
         memset(event, 0, sizeof(vfs_event_t));
@@ -211,7 +212,7 @@ static vfs_event_t* alloc_event_from_pool(void) {
         return event;
     }
     
-    spinlock_unlock(&event_pool_lock);
+    spin_unlock(&event_pool_lock);
     HAL_IRQ_RESTORE(flags);
     
     return NULL;
@@ -240,13 +241,13 @@ static void free_event_to_pool(vfs_event_t* event) {
     
     if (is_pool_event) {
         flags = HAL_IRQ_SAVE();
-        spinlock_lock(&event_pool_lock);
+        spin_lock(&event_pool_lock);
         
         event->pool_next = event_free_list;
         event_free_list = event;
         atomic_dec(&events_allocated);
         
-        spinlock_unlock(&event_pool_lock);
+        spin_unlock(&event_pool_lock);
         HAL_IRQ_RESTORE(flags);
     } else {
         kfree(event);
@@ -357,7 +358,7 @@ vfs_event_watcher_t* vfs_event_watcher_create(const char* name,
     
     // Add to global watcher list
     flags = HAL_IRQ_SAVE();
-    spinlock_lock(&vfs_event_watchers_lock);
+    spin_lock(&vfs_event_watchers_lock);
     
     watcher->next = vfs_event_watchers;
     if (vfs_event_watchers) {
@@ -366,7 +367,7 @@ vfs_event_watcher_t* vfs_event_watcher_create(const char* name,
     vfs_event_watchers = watcher;
     active_watcher_count++;
     
-    spinlock_unlock(&vfs_event_watchers_lock);
+    spin_unlock(&vfs_event_watchers_lock);
     HAL_IRQ_RESTORE(flags);
     
     vfs_event_stats.watchers_total++;
@@ -389,7 +390,7 @@ int vfs_event_watcher_destroy(vfs_event_watcher_t* watcher) {
     }
     
     flags = HAL_IRQ_SAVE();
-    spinlock_lock(&watcher->lock);
+    spin_lock(&watcher->lock);
     
     // Disable watcher
     watcher->enabled = false;
@@ -412,12 +413,12 @@ int vfs_event_watcher_destroy(vfs_event_watcher_t* watcher) {
     }
     watcher->filters = NULL;
     
-    spinlock_unlock(&watcher->lock);
+    spin_unlock(&watcher->lock);
     HAL_IRQ_RESTORE(flags);
     
     // Remove from global list
     flags = HAL_IRQ_SAVE();
-    spinlock_lock(&vfs_event_watchers_lock);
+    spin_lock(&vfs_event_watchers_lock);
     
     if (watcher->prev) {
         watcher->prev->next = watcher->next;
@@ -431,7 +432,7 @@ int vfs_event_watcher_destroy(vfs_event_watcher_t* watcher) {
     
     active_watcher_count--;
     
-    spinlock_unlock(&vfs_event_watchers_lock);
+    spin_unlock(&vfs_event_watchers_lock);
     HAL_IRQ_RESTORE(flags);
     
     vfs_event_stats.watchers_active--;
@@ -453,7 +454,7 @@ int vfs_event_generate(uint32_t type,
                       const void* event_data,
                       size_t data_size) {
     vfs_event_t* event;
-    unsigned long flags;
+    // unsigned long flags;  // Unused in current implementation
     
     if (!event_system_initialized) {
         return VFS_EVENT_ERR_NOT_FOUND;
@@ -484,10 +485,12 @@ int vfs_event_generate(uint32_t type,
     }
     
     // Process information
-    if (current_process) {
-        event->pid = current_process->pid;
-        event->uid = current_process->uid;
-        event->gid = current_process->gid;
+    process_t* current = get_current_process();
+    if (current) {
+        event->pid = current->pid;
+        // TODO: Add proper security context/credentials system
+        event->uid = 0;  // Default to root for now
+        event->gid = 0;  // Default to root group for now
     }
     
     // Copy event-specific data
@@ -528,7 +531,7 @@ static void deliver_event_to_watchers(vfs_event_t* event) {
     start_time = hal->timer_get_ticks();
     
     flags = HAL_IRQ_SAVE();
-    spinlock_lock(&vfs_event_watchers_lock);
+    spin_lock(&vfs_event_watchers_lock);
     
     watcher = vfs_event_watchers;
     while (watcher) {
@@ -560,7 +563,7 @@ static void deliver_event_to_watchers(vfs_event_t* event) {
         watcher = watcher->next;
     }
     
-    spinlock_unlock(&vfs_event_watchers_lock);
+    spin_unlock(&vfs_event_watchers_lock);
     HAL_IRQ_RESTORE(flags);
     
     delivery_time = hal->timer_get_ticks() - start_time;
@@ -637,13 +640,13 @@ int vfs_event_deliver(vfs_event_watcher_t* watcher, vfs_event_t* event) {
     }
     
     flags = HAL_IRQ_SAVE();
-    spinlock_lock(&watcher->lock);
+    spin_lock(&watcher->lock);
     
     watcher->events_received++;
     
     if (watcher->delivery == VFS_EVENT_DELIVERY_SYNC) {
         // Synchronous delivery
-        spinlock_unlock(&watcher->lock);
+        spin_unlock(&watcher->lock);
         HAL_IRQ_RESTORE(flags);
         
         if (watcher->callback) {
@@ -656,7 +659,7 @@ int vfs_event_deliver(vfs_event_watcher_t* watcher, vfs_event_t* event) {
             watcher->events_dropped++;
             vfs_event_stats.events_dropped++;
             vfs_event_stats.queue_overflows++;
-            spinlock_unlock(&watcher->lock);
+            spin_unlock(&watcher->lock);
             HAL_IRQ_RESTORE(flags);
             return VFS_EVENT_ERR_OVERFLOW;
         }
@@ -674,7 +677,7 @@ int vfs_event_deliver(vfs_event_watcher_t* watcher, vfs_event_t* event) {
         watcher->queue_tail = event;
         watcher->queue_size++;
         
-        spinlock_unlock(&watcher->lock);
+        spin_unlock(&watcher->lock);
         HAL_IRQ_RESTORE(flags);
         
         // TODO: Wake up async delivery thread
@@ -686,7 +689,7 @@ int vfs_event_deliver(vfs_event_watcher_t* watcher, vfs_event_t* event) {
 /**
  * Check if event should be rate limited
  */
-static bool should_rate_limit_event(uint32_t event_type) {
+static bool should_rate_limit_event(uint32_t event_type __attribute__((unused))) {
     uint64_t current_time;
     unsigned long flags;
     bool should_limit = false;
@@ -694,7 +697,7 @@ static bool should_rate_limit_event(uint32_t event_type) {
     current_time = hal->timer_get_ticks();
     
     flags = HAL_IRQ_SAVE();
-    spinlock_lock(&rate_limit_lock);
+    spin_lock(&rate_limit_lock);
     
     // Check if we need to reset the rate counter
     if (current_time - last_rate_check_time >= hal->timer_get_frequency()) {
@@ -710,7 +713,7 @@ static bool should_rate_limit_event(uint32_t event_type) {
         should_limit = true;
     }
     
-    spinlock_unlock(&rate_limit_lock);
+    spin_unlock(&rate_limit_lock);
     HAL_IRQ_RESTORE(flags);
     
     return should_limit;
@@ -771,12 +774,12 @@ static int pattern_match(const char* pattern, const char* string) {
  * High-level event generation functions
  */
 void vfs_event_file_create(struct vfs_inode* inode, const char* path) {
-    vfs_event_generate(VFS_EVENT_CREATE, inode, NULL, path, 
+    vfs_event_generate(VFS_NOTIFY_CREATE, inode, NULL, path, 
                       VFS_EVENT_PRIORITY_NORMAL, NULL, 0);
 }
 
 void vfs_event_file_delete(struct vfs_inode* inode, const char* path) {
-    vfs_event_generate(VFS_EVENT_DELETE, inode, NULL, path, 
+    vfs_event_generate(VFS_NOTIFY_DELETE, inode, NULL, path, 
                       VFS_EVENT_PRIORITY_NORMAL, NULL, 0);
 }
 
@@ -787,12 +790,12 @@ void vfs_event_file_modify(struct vfs_inode* inode, const char* path,
         uint64_t new_size;
     } modify_data = { old_size, new_size };
     
-    vfs_event_generate(VFS_EVENT_MODIFY, inode, NULL, path, 
+    vfs_event_generate(VFS_NOTIFY_MODIFY, inode, NULL, path, 
                       VFS_EVENT_PRIORITY_NORMAL, &modify_data, sizeof(modify_data));
 }
 
 void vfs_event_file_access(struct vfs_inode* inode, const char* path) {
-    vfs_event_generate(VFS_EVENT_ACCESS, inode, NULL, path, 
+    vfs_event_generate(VFS_NOTIFY_ACCESS, inode, NULL, path, 
                       VFS_EVENT_PRIORITY_LOW, NULL, 0);
 }
 
@@ -801,13 +804,13 @@ void vfs_event_file_open(struct vfs_file* file, uint32_t flags) {
         uint32_t flags;
     } open_data = { flags };
     
-    vfs_event_generate(VFS_EVENT_OPEN, file->inode, file->dentry, 
+    vfs_event_generate(VFS_NOTIFY_OPEN, file->inode, file->dentry, 
                       file->dentry ? file->dentry->name : NULL,
                       VFS_EVENT_PRIORITY_LOW, &open_data, sizeof(open_data));
 }
 
 void vfs_event_file_close(struct vfs_file* file) {
-    vfs_event_generate(VFS_EVENT_CLOSE, file->inode, file->dentry,
+    vfs_event_generate(VFS_NOTIFY_CLOSE, file->inode, file->dentry,
                       file->dentry ? file->dentry->name : NULL,
                       VFS_EVENT_PRIORITY_LOW, NULL, 0);
 }
@@ -817,30 +820,30 @@ void vfs_event_file_close(struct vfs_file* file) {
  */
 const char* vfs_event_type_string(uint32_t type) {
     switch (type) {
-        case VFS_EVENT_CREATE: return "CREATE";
-        case VFS_EVENT_DELETE: return "DELETE";
-        case VFS_EVENT_MODIFY: return "MODIFY";
-        case VFS_EVENT_METADATA: return "METADATA";
-        case VFS_EVENT_MOVE: return "MOVE";
-        case VFS_EVENT_OPEN: return "OPEN";
-        case VFS_EVENT_CLOSE: return "CLOSE";
-        case VFS_EVENT_ACCESS: return "ACCESS";
-        case VFS_EVENT_MOUNT: return "MOUNT";
-        case VFS_EVENT_UNMOUNT: return "UNMOUNT";
-        case VFS_EVENT_LINK: return "LINK";
-        case VFS_EVENT_UNLINK: return "UNLINK";
-        case VFS_EVENT_SYMLINK: return "SYMLINK";
-        case VFS_EVENT_TRUNCATE: return "TRUNCATE";
-        case VFS_EVENT_SETXATTR: return "SETXATTR";
-        case VFS_EVENT_REMOVEXATTR: return "REMOVEXATTR";
-        case VFS_EVENT_LOCK: return "LOCK";
-        case VFS_EVENT_UNLOCK: return "UNLOCK";
-        case VFS_EVENT_MMAP: return "MMAP";
-        case VFS_EVENT_SYNC: return "SYNC";
-        case VFS_EVENT_ERROR: return "ERROR";
-        case VFS_EVENT_SECURITY: return "SECURITY";
-        case VFS_EVENT_QUOTA: return "QUOTA";
-        case VFS_EVENT_SNAPSHOT: return "SNAPSHOT";
+        case VFS_NOTIFY_CREATE: return "CREATE";
+        case VFS_NOTIFY_DELETE: return "DELETE";
+        case VFS_NOTIFY_MODIFY: return "MODIFY";
+        case VFS_NOTIFY_METADATA: return "METADATA";
+        case VFS_NOTIFY_MOVE: return "MOVE";
+        case VFS_NOTIFY_OPEN: return "OPEN";
+        case VFS_NOTIFY_CLOSE: return "CLOSE";
+        case VFS_NOTIFY_ACCESS: return "ACCESS";
+        case VFS_NOTIFY_MOUNT: return "MOUNT";
+        case VFS_NOTIFY_UNMOUNT: return "UNMOUNT";
+        case VFS_NOTIFY_LINK: return "LINK";
+        case VFS_NOTIFY_UNLINK: return "UNLINK";
+        case VFS_NOTIFY_SYMLINK: return "SYMLINK";
+        case VFS_NOTIFY_TRUNCATE: return "TRUNCATE";
+        case VFS_NOTIFY_SETXATTR: return "SETXATTR";
+        case VFS_NOTIFY_REMOVEXATTR: return "REMOVEXATTR";
+        case VFS_NOTIFY_LOCK: return "LOCK";
+        case VFS_NOTIFY_UNLOCK: return "UNLOCK";
+        case VFS_NOTIFY_MMAP: return "MMAP";
+        case VFS_NOTIFY_SYNC: return "SYNC";
+        case VFS_NOTIFY_ERROR: return "ERROR";
+        case VFS_NOTIFY_SECURITY: return "SECURITY";
+        case VFS_NOTIFY_QUOTA: return "QUOTA";
+        case VFS_NOTIFY_SNAPSHOT: return "SNAPSHOT";
         default: return "UNKNOWN";
     }
 }

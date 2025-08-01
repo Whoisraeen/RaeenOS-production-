@@ -54,4 +54,18 @@ void graphics_apply_blur(uint32_t x, uint32_t y, uint32_t width, uint32_t height
  */
 void graphics_draw_wallpaper(const uint32_t* wallpaper_data, uint32_t width, uint32_t height);
 
+/**
+ * @brief Gets the current screen width.
+ * 
+ * @return uint32_t The width of the screen in pixels.
+ */
+uint32_t graphics_get_width(void);
+
+/**
+ * @brief Gets the current screen height.
+ * 
+ * @return uint32_t The height of the screen in pixels.
+ */
+uint32_t graphics_get_height(void);
+
 #endif // GRAPHICS_H

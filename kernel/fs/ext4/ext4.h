@@ -27,11 +27,15 @@
 #include "../buffer_cache.h"
 #include "../vfs_events.h"
 #include "../../include/types.h"
-#include "../../sync.h"
+#include "../../include/sync.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+// EXT4 constants
+#define EXT4_N_BLOCKS           15
+#define EXT4_DYNAMIC_REV        1
 
 // EXT4 constants
 #define EXT4_SUPER_MAGIC        0xEF53

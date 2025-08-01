@@ -21,26 +21,29 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "../include/types.h"
-#include "../sync.h"
+#include "../include/sync.h"
 #include "../include/hal_interface.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// Lock types
+// Import lock types from vfs_production.h to avoid conflicts
+// vfs_lock_type_t is defined in vfs_production.h with values:
+// VFS_LOCK_NONE, VFS_LOCK_SHARED, VFS_LOCK_EXCLUSIVE, VFS_LOCK_MANDATORY
+
+// Extended lock types for advanced locking operations
 typedef enum {
-    VFS_LOCK_NONE = 0,
-    VFS_LOCK_READ = 1,          // Shared/read lock
-    VFS_LOCK_WRITE = 2,         // Exclusive/write lock
+    VFS_LOCK_READ = 1,          // Shared/read lock (maps to VFS_LOCK_SHARED)
+    VFS_LOCK_WRITE = 2,         // Exclusive/write lock (maps to VFS_LOCK_EXCLUSIVE)
     VFS_LOCK_UPGRADE = 3,       // Upgrade from read to write
     VFS_LOCK_DOWNGRADE = 4      // Downgrade from write to read
-} vfs_lock_type_t;
+} vfs_lock_extended_type_t;
 
 // Lock modes
 typedef enum {
     VFS_LOCK_ADVISORY = 0,      // Advisory locking (default)
-    VFS_LOCK_MANDATORY = 1      // Mandatory locking (enforced by kernel)
+    VFS_LOCK_MANDATORY_MODE = 1 // Mandatory locking (enforced by kernel)
 } vfs_lock_mode_t;
 
 // Lock states
@@ -71,7 +74,7 @@ typedef struct vfs_lock_request {
     pid_t owner_pid;                // Process ID of lock owner
     uint64_t owner_tid;             // Thread ID of lock owner
     
-    vfs_lock_type_t type;           // Lock type (read/write)
+    vfs_lock_extended_type_t type;  // Lock type (read/write)
     vfs_lock_mode_t mode;           // Advisory or mandatory
     vfs_lock_state_t state;         // Current lock state
     uint32_t flags;                 // Lock flags
@@ -214,7 +217,7 @@ void vfs_lock_manager_destroy(vfs_lock_manager_t* manager);
  * Request a file lock
  */
 vfs_lock_request_t* vfs_lock_request(struct vfs_file* file, 
-                                    vfs_lock_type_t type,
+                                    vfs_lock_extended_type_t type,
                                     uint64_t start, 
                                     uint64_t length,
                                     uint32_t flags);
@@ -228,7 +231,7 @@ int vfs_lock_release(vfs_lock_request_t* lock);
  * Test if a lock can be acquired (non-blocking)
  */
 int vfs_lock_test(struct vfs_file* file, 
-                  vfs_lock_type_t type,
+                  vfs_lock_extended_type_t type,
                   uint64_t start, 
                   uint64_t length,
                   vfs_lock_request_t** conflicting_lock);
@@ -375,7 +378,7 @@ bool vfs_locks_conflict(vfs_lock_request_t* lock1, vfs_lock_request_t* lock2);
 /**
  * Convert lock type to string (for debugging)
  */
-const char* vfs_lock_type_string(vfs_lock_type_t type);
+const char* vfs_lock_type_string(vfs_lock_extended_type_t type);
 
 /**
  * Convert lock state to string (for debugging)
@@ -423,30 +426,13 @@ int vfs_optimize_lock_manager(vfs_lock_manager_t* manager);
 #define VFS_LOCK_ERR_WOULD_BLOCK  -4009
 #define VFS_LOCK_ERR_TOO_MANY     -4010
 
-// POSIX lock commands (for fcntl)
-#define F_GETLK     5   // Get lock information
-#define F_SETLK     6   // Set lock (non-blocking)
-#define F_SETLKW    7   // Set lock (blocking)
-
-// POSIX lock types
-#define F_RDLCK     0   // Read lock
-#define F_WRLCK     1   // Write lock
-#define F_UNLCK     2   // Unlock
-
 // flock operations
 #define LOCK_SH     1   // Shared lock
 #define LOCK_EX     2   // Exclusive lock
 #define LOCK_NB     4   // Non-blocking
 #define LOCK_UN     8   // Unlock
 
-// POSIX flock structure
-struct flock {
-    short l_type;       // Type of lock: F_RDLCK, F_WRLCK, F_UNLCK
-    short l_whence;     // How to interpret l_start: SEEK_SET, SEEK_CUR, SEEK_END
-    off_t l_start;      // Starting offset for lock
-    off_t l_len;        // Number of bytes to lock
-    pid_t l_pid;        // PID of process blocking our lock (F_GETLK only)
-};
+// Note: struct flock and POSIX lock commands are now defined in types.h
 
 #ifdef __cplusplus
 }

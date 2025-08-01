@@ -39,7 +39,7 @@ vfs_lock_config_t vfs_lock_config = {
 // Global lock tracking
 static vfs_lock_request_t* global_lock_list = NULL;
 spinlock_t vfs_global_lock_list_lock = SPINLOCK_INIT;
-static uint64_t next_lock_id = 1;
+static atomic64_t next_lock_id = ATOMIC_INIT(1);
 static bool lock_system_initialized = false;
 
 // Lock memory pool for performance
@@ -149,23 +149,23 @@ static vfs_lock_request_t* alloc_lock_request(void) {
     unsigned long flags;
     
     flags = HAL_IRQ_SAVE();
-    spinlock_lock(&lock_pool_lock);
+    spin_lock(&lock_pool_lock);
     
     if (lock_free_list) {
         lock = lock_free_list;
         lock_free_list = lock->next_waiter;
         atomic_inc(&lock_pool_used);
-        spinlock_unlock(&lock_pool_lock);
+        spin_unlock(&lock_pool_lock);
         HAL_IRQ_RESTORE(flags);
         
         memset(lock, 0, sizeof(vfs_lock_request_t));
         spinlock_init(&lock->lock);
-        lock->id = atomic_inc_return(&next_lock_id);
+        lock->id = atomic64_read(&next_lock_id); atomic64_inc(&next_lock_id);
         
         return lock;
     }
     
-    spinlock_unlock(&lock_pool_lock);
+    spin_unlock(&lock_pool_lock);
     HAL_IRQ_RESTORE(flags);
     
     // Pool exhausted, allocate from heap
@@ -173,7 +173,7 @@ static vfs_lock_request_t* alloc_lock_request(void) {
     if (lock) {
         memset(lock, 0, sizeof(vfs_lock_request_t));
         spinlock_init(&lock->lock);
-        lock->id = atomic_inc_return(&next_lock_id);
+        lock->id = atomic64_read(&next_lock_id); atomic64_inc(&next_lock_id);
     }
     
     return lock;
@@ -197,13 +197,13 @@ static void free_lock_request(vfs_lock_request_t* lock) {
     
     if (is_pool_lock) {
         flags = HAL_IRQ_SAVE();
-        spinlock_lock(&lock_pool_lock);
+        spin_lock(&lock_pool_lock);
         
         lock->next_waiter = lock_free_list;
         lock_free_list = lock;
         atomic_dec(&lock_pool_used);
         
-        spinlock_unlock(&lock_pool_lock);
+        spin_unlock(&lock_pool_lock);
         HAL_IRQ_RESTORE(flags);
     } else {
         kfree(lock);
@@ -255,7 +255,7 @@ void vfs_lock_manager_destroy(vfs_lock_manager_t* manager) {
     }
     
     flags = HAL_IRQ_SAVE();
-    rwlock_write_lock(&manager->manager_lock);
+    write_lock(&manager->manager_lock);
     
     // Release all active locks
     lock = manager->read_locks;
@@ -281,7 +281,7 @@ void vfs_lock_manager_destroy(vfs_lock_manager_t* manager) {
         lock = next;
     }
     
-    rwlock_write_unlock(&manager->manager_lock);
+    write_unlock(&manager->manager_lock);
     HAL_IRQ_RESTORE(flags);
     
     vfs_lock_stats.lock_managers_active--;
@@ -332,7 +332,7 @@ static int grant_lock(vfs_lock_manager_t* manager, vfs_lock_request_t* lock) {
     unsigned long flags;
     
     flags = HAL_IRQ_SAVE();
-    rwlock_write_lock(&manager->manager_lock);
+    write_lock(&manager->manager_lock);
     
     // Add to appropriate active lock list
     if (lock->type == VFS_LOCK_READ) {
@@ -352,17 +352,17 @@ static int grant_lock(vfs_lock_manager_t* manager, vfs_lock_request_t* lock) {
     
     manager->total_locks_granted++;
     
-    rwlock_write_unlock(&manager->manager_lock);
+    write_unlock(&manager->manager_lock);
     HAL_IRQ_RESTORE(flags);
     
     // Add to global lock list
     flags = HAL_IRQ_SAVE();
-    spinlock_lock(&vfs_global_lock_list_lock);
+    spin_lock(&vfs_global_lock_list_lock);
     
     lock->next_waiter = global_lock_list;
     global_lock_list = lock;
     
-    spinlock_unlock(&vfs_global_lock_list_lock);
+    spin_unlock(&vfs_global_lock_list_lock);
     HAL_IRQ_RESTORE(flags);
     
     update_lock_stats(lock, true);
@@ -381,7 +381,7 @@ static int queue_lock_waiter(vfs_lock_manager_t* manager, vfs_lock_request_t* lo
     }
     
     flags = HAL_IRQ_SAVE();
-    spinlock_lock(&manager->wait_queue_lock);
+    spin_lock(&manager->wait_queue_lock);
     
     // Add to wait queue (priority order)
     vfs_lock_request_t* current = manager->wait_queue_head;
@@ -411,7 +411,7 @@ static int queue_lock_waiter(vfs_lock_manager_t* manager, vfs_lock_request_t* lo
     manager->waiting_locks++;
     vfs_lock_stats.locks_waiting++;
     
-    spinlock_unlock(&manager->wait_queue_lock);
+    spin_unlock(&manager->wait_queue_lock);
     HAL_IRQ_RESTORE(flags);
     
     update_lock_stats(lock, false);
@@ -423,7 +423,7 @@ static int queue_lock_waiter(vfs_lock_manager_t* manager, vfs_lock_request_t* lo
  * Request a file lock
  */
 vfs_lock_request_t* vfs_lock_request(struct vfs_file* file, 
-                                    vfs_lock_type_t type,
+                                    vfs_lock_extended_type_t type,
                                     uint64_t start, 
                                     uint64_t length,
                                     uint32_t flags) {
@@ -454,10 +454,11 @@ vfs_lock_request_t* vfs_lock_request(struct vfs_file* file,
     }
     
     // Initialize lock request
-    lock->owner_pid = current_process ? current_process->pid : 0;
-    lock->owner_tid = current_process ? current_process->tid : 0;
+    process_t* current = get_current_process();
+    lock->owner_pid = current ? current->pid : 0;
+    lock->owner_tid = current ? current->pid : 0;  // Use pid as tid until tid field is added
     lock->type = type;
-    lock->mode = manager->mandatory_locking ? VFS_LOCK_MANDATORY : VFS_LOCK_ADVISORY;
+    lock->mode = manager->mandatory_locking ? VFS_LOCK_MANDATORY_MODE : VFS_LOCK_ADVISORY;
     lock->state = VFS_LOCK_STATE_PENDING;
     lock->flags = flags;
     lock->start = start;
@@ -472,7 +473,7 @@ vfs_lock_request_t* vfs_lock_request(struct vfs_file* file,
     
     // Check for conflicts with active locks
     irq_flags = HAL_IRQ_SAVE();
-    rwlock_read_lock(&manager->manager_lock);
+    read_lock(&manager->manager_lock);
     
     // Check read locks
     conflict = manager->read_locks;
@@ -496,7 +497,7 @@ vfs_lock_request_t* vfs_lock_request(struct vfs_file* file,
         }
     }
     
-    rwlock_read_unlock(&manager->manager_lock);
+    read_unlock(&manager->manager_lock);
     HAL_IRQ_RESTORE(irq_flags);
     
     if (can_grant) {
@@ -533,7 +534,7 @@ int vfs_lock_release(vfs_lock_request_t* lock) {
     manager = lock->manager;
     
     flags = HAL_IRQ_SAVE();
-    rwlock_write_lock(&manager->manager_lock);
+    write_lock(&manager->manager_lock);
     
     // Remove from active lock list
     if (lock->type == VFS_LOCK_READ) {
@@ -574,12 +575,12 @@ int vfs_lock_release(vfs_lock_request_t* lock) {
         }
     }
     
-    rwlock_write_unlock(&manager->manager_lock);
+    write_unlock(&manager->manager_lock);
     HAL_IRQ_RESTORE(flags);
     
     // Remove from global lock list
     flags = HAL_IRQ_SAVE();
-    spinlock_lock(&vfs_global_lock_list_lock);
+    spin_lock(&vfs_global_lock_list_lock);
     
     current = global_lock_list;
     prev = NULL;
@@ -597,7 +598,7 @@ int vfs_lock_release(vfs_lock_request_t* lock) {
         current = current->next_waiter;
     }
     
-    spinlock_unlock(&vfs_global_lock_list_lock);
+    spin_unlock(&vfs_global_lock_list_lock);
     HAL_IRQ_RESTORE(flags);
     
     // Wake up waiters
@@ -621,7 +622,7 @@ static void wake_lock_waiters(vfs_lock_manager_t* manager, vfs_lock_request_t* r
     unsigned long flags;
     
     flags = HAL_IRQ_SAVE();
-    spinlock_lock(&manager->wait_queue_lock);
+    spin_lock(&manager->wait_queue_lock);
     
     waiter = manager->wait_queue_head;
     while (waiter) {
@@ -631,7 +632,7 @@ static void wake_lock_waiters(vfs_lock_manager_t* manager, vfs_lock_request_t* r
         bool can_grant = true;
         
         // Re-check conflicts with all active locks
-        rwlock_read_lock(&manager->manager_lock);
+        read_lock(&manager->manager_lock);
         
         vfs_lock_request_t* active = manager->read_locks;
         while (active && can_grant) {
@@ -651,7 +652,7 @@ static void wake_lock_waiters(vfs_lock_manager_t* manager, vfs_lock_request_t* r
             }
         }
         
-        rwlock_read_unlock(&manager->manager_lock);
+        read_unlock(&manager->manager_lock);
         
         if (can_grant) {
             // Remove from wait queue
@@ -670,14 +671,14 @@ static void wake_lock_waiters(vfs_lock_manager_t* manager, vfs_lock_request_t* r
             manager->waiting_locks--;
             vfs_lock_stats.locks_waiting--;
             
-            spinlock_unlock(&manager->wait_queue_lock);
+            spin_unlock(&manager->wait_queue_lock);
             HAL_IRQ_RESTORE(flags);
             
             // Grant the lock
             grant_lock(manager, waiter);
             
             flags = HAL_IRQ_SAVE();
-            spinlock_lock(&manager->wait_queue_lock);
+            spin_lock(&manager->wait_queue_lock);
             
             // Restart search as list may have changed
             waiter = manager->wait_queue_head;
@@ -687,7 +688,7 @@ static void wake_lock_waiters(vfs_lock_manager_t* manager, vfs_lock_request_t* r
         waiter = next_waiter;
     }
     
-    spinlock_unlock(&manager->wait_queue_lock);
+    spin_unlock(&manager->wait_queue_lock);
     HAL_IRQ_RESTORE(flags);
 }
 
@@ -695,7 +696,7 @@ static void wake_lock_waiters(vfs_lock_manager_t* manager, vfs_lock_request_t* r
  * Test if a lock can be acquired
  */
 int vfs_lock_test(struct vfs_file* file, 
-                  vfs_lock_type_t type,
+                  vfs_lock_extended_type_t type,
                   uint64_t start, 
                   uint64_t length,
                   vfs_lock_request_t** conflicting_lock) {
@@ -714,15 +715,16 @@ int vfs_lock_test(struct vfs_file* file,
     }
     
     // Create test lock
-    test_lock.owner_pid = current_process ? current_process->pid : 0;
-    test_lock.owner_tid = current_process ? current_process->tid : 0;
+    process_t* current = get_current_process();
+    test_lock.owner_pid = current ? current->pid : 0;
+    test_lock.owner_tid = current ? current->pid : 0;  // Use pid as tid until tid field is added
     test_lock.type = type;
     test_lock.start = start;
     test_lock.length = length;
     test_lock.end = (length == 0) ? 0 : start + length - 1;
     
     flags = HAL_IRQ_SAVE();
-    rwlock_read_lock(&manager->manager_lock);
+    read_lock(&manager->manager_lock);
     
     // Check read locks
     conflict = manager->read_locks;
@@ -731,7 +733,7 @@ int vfs_lock_test(struct vfs_file* file,
             if (conflicting_lock) {
                 *conflicting_lock = conflict;
             }
-            rwlock_read_unlock(&manager->manager_lock);
+            read_unlock(&manager->manager_lock);
             HAL_IRQ_RESTORE(flags);
             return VFS_LOCK_ERR_CONFLICT;
         }
@@ -745,14 +747,14 @@ int vfs_lock_test(struct vfs_file* file,
             if (conflicting_lock) {
                 *conflicting_lock = conflict;
             }
-            rwlock_read_unlock(&manager->manager_lock);
+            read_unlock(&manager->manager_lock);
             HAL_IRQ_RESTORE(flags);
             return VFS_LOCK_ERR_CONFLICT;
         }
         conflict = conflict->next_waiter;
     }
     
-    rwlock_read_unlock(&manager->manager_lock);
+    read_unlock(&manager->manager_lock);
     HAL_IRQ_RESTORE(flags);
     
     return VFS_LOCK_SUCCESS;
@@ -796,9 +798,8 @@ int vfs_get_lock_stats(vfs_lock_stats_t* stats) {
 /**
  * Convert lock type to string
  */
-const char* vfs_lock_type_string(vfs_lock_type_t type) {
+const char* vfs_lock_type_string(vfs_lock_extended_type_t type) {
     switch (type) {
-        case VFS_LOCK_NONE: return "NONE";
         case VFS_LOCK_READ: return "READ";
         case VFS_LOCK_WRITE: return "WRITE";
         case VFS_LOCK_UPGRADE: return "UPGRADE";
@@ -838,14 +839,15 @@ int vfs_check_mandatory_locks(struct vfs_file* file, uint64_t start, uint64_t le
     }
     
     flags = HAL_IRQ_SAVE();
-    rwlock_read_lock(&manager->manager_lock);
+    read_lock(&manager->manager_lock);
     
     // Check write locks (always conflict with I/O)
     lock = manager->write_locks;
     while (lock) {
+        process_t* current = get_current_process();
         if (vfs_locks_overlap(start, start + length - 1, lock->start, lock->end) &&
-            lock->owner_pid != (current_process ? current_process->pid : 0)) {
-            rwlock_read_unlock(&manager->manager_lock);
+            lock->owner_pid != (current ? current->pid : 0)) {
+            read_unlock(&manager->manager_lock);
             HAL_IRQ_RESTORE(flags);
             return VFS_LOCK_ERR_CONFLICT;
         }
@@ -856,9 +858,10 @@ int vfs_check_mandatory_locks(struct vfs_file* file, uint64_t start, uint64_t le
     if (is_write) {
         lock = manager->read_locks;
         while (lock) {
+            process_t* current = get_current_process();
             if (vfs_locks_overlap(start, start + length - 1, lock->start, lock->end) &&
-                lock->owner_pid != (current_process ? current_process->pid : 0)) {
-                rwlock_read_unlock(&manager->manager_lock);
+                lock->owner_pid != (current ? current->pid : 0)) {
+                read_unlock(&manager->manager_lock);
                 HAL_IRQ_RESTORE(flags);
                 return VFS_LOCK_ERR_CONFLICT;
             }
@@ -866,7 +869,7 @@ int vfs_check_mandatory_locks(struct vfs_file* file, uint64_t start, uint64_t le
         }
     }
     
-    rwlock_read_unlock(&manager->manager_lock);
+    read_unlock(&manager->manager_lock);
     HAL_IRQ_RESTORE(flags);
     
     return VFS_LOCK_SUCCESS;
@@ -880,20 +883,20 @@ void vfs_cleanup_process_locks(pid_t pid) {
     unsigned long flags;
     
     flags = HAL_IRQ_SAVE();
-    spinlock_lock(&vfs_global_lock_list_lock);
+    spin_lock(&vfs_global_lock_list_lock);
     
     lock = global_lock_list;
     while (lock) {
         next = lock->next_waiter;
         
         if (lock->owner_pid == pid) {
-            spinlock_unlock(&vfs_global_lock_list_lock);
+            spin_unlock(&vfs_global_lock_list_lock);
             HAL_IRQ_RESTORE(flags);
             
             vfs_lock_release(lock);
             
             flags = HAL_IRQ_SAVE();
-            spinlock_lock(&vfs_global_lock_list_lock);
+            spin_lock(&vfs_global_lock_list_lock);
             
             // Restart search as list may have changed
             lock = global_lock_list;
@@ -903,6 +906,6 @@ void vfs_cleanup_process_locks(pid_t pid) {
         lock = next;
     }
     
-    spinlock_unlock(&vfs_global_lock_list_lock);
+    spin_unlock(&vfs_global_lock_list_lock);
     HAL_IRQ_RESTORE(flags);
 }

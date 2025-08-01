@@ -331,7 +331,7 @@ vfs_superblock_t* fat32_mount_fs(const char* device, uint32_t flags, const void*
     spinlock_init(&sb->lock);
     
     // Generate filesystem mounted event
-    vfs_event_generate(VFS_EVENT_MOUNT, NULL, NULL, device, 
+    vfs_event_generate(VFS_NOTIFY_CREATE, NULL, NULL, device, 
                       VFS_EVENT_PRIORITY_NORMAL, NULL, 0);
     
     return sb;
@@ -375,7 +375,7 @@ void fat32_unmount_fs(vfs_superblock_t* sb) {
     }
     
     // Generate filesystem unmounted event
-    vfs_event_generate(VFS_EVENT_UNMOUNT, NULL, NULL, NULL, 
+    vfs_event_generate(VFS_NOTIFY_DELETE, NULL, NULL, NULL, 
                       VFS_EVENT_PRIORITY_NORMAL, NULL, 0);
     
     kfree(mount);

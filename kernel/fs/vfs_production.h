@@ -18,9 +18,13 @@
 #ifndef VFS_PRODUCTION_H
 #define VFS_PRODUCTION_H
 
+#ifndef __KERNEL__
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#else
+// Kernel mode - use our own type definitions
+#endif
 #include "../include/types.h"
 #include "../include/errno.h"
 #include "../include/time.h"
@@ -55,6 +59,9 @@ extern "C" {
 #define VFS_SYMLINK     0x06
 #define VFS_SOCKET      0x07
 #define VFS_MOUNTPOINT  0x08
+
+// Legacy compatibility flag aliases
+#define VFS_FLAG_PIPE   VFS_PIPE
 
 // Access Permission Flags
 #define VFS_FLAG_READABLE   0x10

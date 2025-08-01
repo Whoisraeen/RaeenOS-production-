@@ -19,41 +19,52 @@
 #ifndef VFS_EVENTS_H
 #define VFS_EVENTS_H
 
+#ifndef __KERNEL__
 #include <stdint.h>
 #include <stdbool.h>
+#else
+// Kernel mode - use our own type definitions
+#include "../include/types.h"
+#endif
 #include "../include/types.h"
 #include "../include/sync.h"
 #include "../include/hal_interface.h"
+
+// VFS Path maximum length (avoid conflict with vfs_production.h)
+#ifndef VFS_PATH_MAX
+#define VFS_PATH_MAX 4096
+#endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 // Event types (bit flags for efficient filtering)
-#define VFS_EVENT_CREATE         0x00000001  // File/directory created
-#define VFS_EVENT_DELETE         0x00000002  // File/directory deleted
-#define VFS_EVENT_MODIFY         0x00000004  // File content modified
-#define VFS_EVENT_METADATA       0x00000008  // Metadata changed (chmod, chown, etc.)
-#define VFS_EVENT_MOVE           0x00000010  // File/directory moved/renamed
-#define VFS_EVENT_OPEN           0x00000020  // File opened
-#define VFS_EVENT_CLOSE          0x00000040  // File closed
-#define VFS_EVENT_ACCESS         0x00000080  // File accessed (read)
-#define VFS_EVENT_MOUNT          0x00000100  // Filesystem mounted
-#define VFS_EVENT_UNMOUNT        0x00000200  // Filesystem unmounted
-#define VFS_EVENT_LINK           0x00000400  // Hard link created
-#define VFS_EVENT_UNLINK         0x00000800  // Hard link removed
-#define VFS_EVENT_SYMLINK        0x00001000  // Symbolic link created
-#define VFS_EVENT_TRUNCATE       0x00002000  // File truncated
-#define VFS_EVENT_SETXATTR       0x00004000  // Extended attribute set
-#define VFS_EVENT_REMOVEXATTR    0x00008000  // Extended attribute removed
-#define VFS_EVENT_LOCK           0x00010000  // File lock acquired
-#define VFS_EVENT_UNLOCK         0x00020000  // File lock released
-#define VFS_EVENT_MMAP           0x00040000  // File memory mapped
-#define VFS_EVENT_SYNC           0x00080000  // File/filesystem synced
-#define VFS_EVENT_ERROR          0x00100000  // Error occurred
-#define VFS_EVENT_SECURITY       0x00200000  // Security-related event
-#define VFS_EVENT_QUOTA          0x00400000  // Quota-related event
-#define VFS_EVENT_SNAPSHOT       0x00800000  // Snapshot created/deleted
+// Note: These use different names to avoid conflicts with vfs_production.h enums
+#define VFS_NOTIFY_CREATE        0x00000001  // File/directory created
+#define VFS_NOTIFY_DELETE        0x00000002  // File/directory deleted
+#define VFS_NOTIFY_MODIFY        0x00000004  // File content modified
+#define VFS_NOTIFY_METADATA      0x00000008  // Metadata changed (chmod, chown, etc.)
+#define VFS_NOTIFY_MOVE          0x00000010  // File/directory moved/renamed
+#define VFS_NOTIFY_OPEN          0x00000020  // File opened
+#define VFS_NOTIFY_CLOSE         0x00000040  // File closed
+#define VFS_NOTIFY_ACCESS        0x00000080  // File accessed (read)
+#define VFS_NOTIFY_MOUNT         0x00000100  // Filesystem mounted
+#define VFS_NOTIFY_UNMOUNT       0x00000200  // Filesystem unmounted
+#define VFS_NOTIFY_LINK          0x00000400  // Hard link created
+#define VFS_NOTIFY_UNLINK        0x00000800  // Hard link removed
+#define VFS_NOTIFY_SYMLINK       0x00001000  // Symbolic link created
+#define VFS_NOTIFY_TRUNCATE      0x00002000  // File truncated
+#define VFS_NOTIFY_SETXATTR      0x00004000  // Extended attribute set
+#define VFS_NOTIFY_REMOVEXATTR   0x00008000  // Extended attribute removed
+#define VFS_NOTIFY_LOCK          0x00010000  // File lock acquired
+#define VFS_NOTIFY_UNLOCK        0x00020000  // File lock released
+#define VFS_NOTIFY_MMAP          0x00040000  // File memory mapped
+#define VFS_NOTIFY_SYNC          0x00080000  // File/filesystem synced
+#define VFS_NOTIFY_ERROR         0x00100000  // Error occurred
+#define VFS_NOTIFY_SECURITY      0x00200000  // Security-related event
+#define VFS_NOTIFY_QUOTA         0x00400000  // Quota-related event
+#define VFS_NOTIFY_SNAPSHOT      0x00800000  // Snapshot created/deleted
 
 // Event priorities
 typedef enum {

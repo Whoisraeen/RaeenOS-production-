@@ -15,11 +15,29 @@
  */
 
 #include "vfs.h"
-#include "../memory.h"
 #include "../string.h"
-#include "../include/security_interface.h"
 #include "ramfs.h"
 #include "fat32/fat32.h"
+
+// Memory compatibility layer to resolve conflicts
+#ifdef MEMORY_INTERFACE_H
+// Use advanced memory interface
+#define kmalloc_vfs(size) kmalloc(size, MM_FLAG_KERNEL)
+#define memory_init_vfs() memory_init()
+#else
+// Use basic memory interface  
+#include "../memory.h"
+#define kmalloc_vfs(size) kmalloc(size)
+#define memory_init_vfs() memory_init()
+#endif
+
+// Include security interface after memory resolution
+// Comment out temporarily to avoid conflicts
+// #include "../include/security_interface.h"
+
+// Define missing constants
+#define SPINLOCK_INIT {0}
+#define MNT_FORCE 0x1
 
 // Global VFS state
 vfs_node_t* vfs_root = NULL;              // Legacy compatibility
@@ -330,7 +348,7 @@ int vfs_mount(const char* device, const char* mountpoint, const char* fstype, ui
     }
     
     // Create mount structure
-    mount = kmalloc(sizeof(vfs_mount_t));
+    mount = kmalloc_vfs(sizeof(vfs_mount_t));
     if (!mount) {
         if (fs_ops->unmount) {
             fs_ops->unmount(sb);
@@ -454,12 +472,12 @@ vfs_mount_t* vfs_find_mount(const char* path) {
  * Allocate buffer
  */
 vfs_buffer_t* vfs_alloc_buffer(size_t size) {
-    vfs_buffer_t* buffer = kmalloc(sizeof(vfs_buffer_t));
+    vfs_buffer_t* buffer = kmalloc_vfs(sizeof(vfs_buffer_t));
     if (!buffer) {
         return NULL;
     }
     
-    buffer->data = kmalloc(size);
+    buffer->data = kmalloc_vfs(size);
     if (!buffer->data) {
         kfree(buffer);
         return NULL;
@@ -554,7 +572,7 @@ void vfs_put_buffer(vfs_buffer_t* buffer) {
  * Allocate inode
  */
 vfs_inode_t* vfs_alloc_inode(vfs_superblock_t* sb) {
-    vfs_inode_t* inode = kmalloc(sizeof(vfs_inode_t));
+    vfs_inode_t* inode = kmalloc_vfs(sizeof(vfs_inode_t));
     if (!inode) {
         return NULL;
     }
@@ -611,7 +629,7 @@ void vfs_free_inode(vfs_inode_t* inode) {
  * Allocate directory entry
  */
 vfs_dentry_t* vfs_alloc_dentry(const char* name) {
-    vfs_dentry_t* dentry = kmalloc(sizeof(vfs_dentry_t));
+    vfs_dentry_t* dentry = kmalloc_vfs(sizeof(vfs_dentry_t));
     if (!dentry) {
         return NULL;
     }
@@ -646,7 +664,7 @@ void vfs_free_dentry(vfs_dentry_t* dentry) {
  * Allocate file structure
  */
 vfs_file_t* vfs_alloc_file(void) {
-    vfs_file_t* file = kmalloc(sizeof(vfs_file_t));
+    vfs_file_t* file = kmalloc_vfs(sizeof(vfs_file_t));
     if (!file) {
         return NULL;
     }
@@ -912,7 +930,7 @@ int vfs_path_normalize(const char* path, char* normalized, size_t size) {
     }
     
     // Make a copy for tokenization
-    path_copy = kmalloc(strlen(path) + 1);
+    path_copy = kmalloc_vfs(strlen(path) + 1);
     if (!path_copy) {
         return VFS_ERR_NO_MEMORY;
     }
@@ -988,7 +1006,7 @@ char* vfs_get_absolute_path(vfs_dentry_t* dentry) {
     }
     
     // Allocate result buffer
-    result = kmalloc(total_len + 2); // +2 for root '/' and null terminator
+    result = kmalloc_vfs(total_len + 2); // +2 for root '/' and null terminator
     if (!result) {
         return NULL;
     }
@@ -1067,7 +1085,7 @@ vfs_dentry_t* vfs_lookup(const char* path) {
     current->ref_count++;
     
     // Make copy for tokenization
-    path_copy = kmalloc(strlen(normalized) + 1);
+    path_copy = kmalloc_vfs(strlen(normalized) + 1);
     if (!path_copy) {
         vfs_put_dentry(current);
         return NULL;

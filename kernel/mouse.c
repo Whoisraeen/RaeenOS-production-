@@ -11,7 +11,7 @@
 #define MOUSE_CMD_PORT    0x64
 
 // Internal state of the mouse driver
-static struct mouse_state_t g_mouse_state;
+static mouse_state_t g_mouse_state;
 static uint8_t mouse_cycle = 0;
 static int8_t mouse_byte[3];
 
@@ -20,12 +20,12 @@ static void mouse_wait(uint8_t a_type) {
     uint32_t timeout = 100000;
     if (a_type == 0) {
         while (timeout--) {
-            if ((port_byte_in(MOUSE_CMD_PORT) & 1) == 1) return;
+            if ((inb(MOUSE_CMD_PORT) & 1) == 1) return;
         }
         return;
     } else {
         while (timeout--) {
-            if ((port_byte_in(MOUSE_CMD_PORT) & 2) == 0) return;
+            if ((inb(MOUSE_CMD_PORT) & 2) == 0) return;
         }
         return;
     }
@@ -34,48 +34,15 @@ static void mouse_wait(uint8_t a_type) {
 // Helper function to write to the mouse
 static void mouse_write(uint8_t a_write) {
     mouse_wait(1);
-    port_byte_out(MOUSE_CMD_PORT, 0xD4);
+    outb(MOUSE_CMD_PORT, 0xD4);
     mouse_wait(1);
-    port_byte_out(MOUSE_DATA_PORT, a_write);
+    outb(MOUSE_DATA_PORT, a_write);
 }
 
 // Helper function to read from the mouse
 static uint8_t mouse_read() {
     mouse_wait(0);
-    return port_byte_in(MOUSE_DATA_PORT);
-}
-
-static uint8_t mouse_cycle = 0;
-static int8_t mouse_byte[3];
-
-// Helper functions to wait for mouse communication
-static void mouse_wait(uint8_t a_type) {
-    uint32_t timeout = 100000;
-    if (a_type == 0) {
-        while (timeout--) {
-            if ((port_byte_in(MOUSE_CMD_PORT) & 1) == 1) return;
-        }
-        return;
-    } else {
-        while (timeout--) {
-            if ((port_byte_in(MOUSE_CMD_PORT) & 2) == 0) return;
-        }
-        return;
-    }
-}
-
-// Helper function to write to the mouse
-static void mouse_write(uint8_t a_write) {
-    mouse_wait(1);
-    port_byte_out(MOUSE_CMD_PORT, 0xD4);
-    mouse_wait(1);
-    port_byte_out(MOUSE_DATA_PORT, a_write);
-}
-
-// Helper function to read from the mouse
-static uint8_t mouse_read() {
-    mouse_wait(0);
-    return port_byte_in(MOUSE_DATA_PORT);
+    return inb(MOUSE_DATA_PORT);
 }
 
 /**
@@ -83,7 +50,7 @@ static uint8_t mouse_read() {
  */
 static void mouse_handler(struct registers_t* regs) {
     (void)regs;
-    uint8_t data = port_byte_in(MOUSE_DATA_PORT);
+    uint8_t data = inb(MOUSE_DATA_PORT);
     mouse_process_packet(data);
 }
 
@@ -99,17 +66,17 @@ void mouse_init(void) {
 
     // Enable the auxiliary mouse device
     mouse_wait(1);
-    port_byte_out(MOUSE_CMD_PORT, 0xA8);
+    outb(MOUSE_CMD_PORT, 0xA8);
 
     // Enable the interrupts
     mouse_wait(1);
-    port_byte_out(MOUSE_CMD_PORT, 0x20);
+    outb(MOUSE_CMD_PORT, 0x20);
     mouse_wait(0);
-    status = (port_byte_in(MOUSE_DATA_PORT) | 2);
+    status = (inb(MOUSE_DATA_PORT) | 2);
     mouse_wait(1);
-    port_byte_out(MOUSE_CMD_PORT, 0x60);
+    outb(MOUSE_CMD_PORT, 0x60);
     mouse_wait(1);
-    port_byte_out(MOUSE_DATA_PORT, status);
+    outb(MOUSE_DATA_PORT, status);
 
     // Set mouse to use default settings
     mouse_write(0xF6);

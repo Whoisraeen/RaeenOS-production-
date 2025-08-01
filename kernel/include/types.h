@@ -3,23 +3,58 @@
 
 // Basic type definitions for RaeenOS kernel
 
+// Only define types if not already defined by standard headers
+#ifndef __STDINT_H
+#ifndef _STDINT_H
+
 // Unsigned integer types
+#ifndef UINT8_MAX
 typedef unsigned char uint8_t;
+#endif
+#ifndef UINT16_MAX
 typedef unsigned short uint16_t;
+#endif
+#ifndef UINT32_MAX
 typedef unsigned int uint32_t;
+#endif
+#ifndef UINT64_MAX
 typedef unsigned long long uint64_t;
+#endif
 
-// Signed integer types
+// Signed integer types  
+#ifndef INT8_MAX
 typedef signed char int8_t;
+#endif
+#ifndef INT16_MAX
 typedef signed short int16_t;
+#endif
+#ifndef INT32_MAX
 typedef signed int int32_t;
+#endif
+#ifndef INT64_MAX
 typedef signed long long int64_t;
+#endif
 
-// Standard C types
+#endif // _STDINT_H
+#endif // __STDINT_H
+
+// Standard C types - use standard definitions if available
+#ifndef _SIZE_T_DEFINED
+#ifndef __SIZE_T
 typedef uint32_t size_t;
+#endif
+#endif
 typedef int32_t ssize_t;
 typedef int32_t ptrdiff_t;
-typedef uint32_t uintptr_t;  // Pointer-sized integer for 32-bit systems
+
+// Pointer-sized integer - use standard if available
+#ifndef _UINTPTR_T_DEFINED
+#ifdef __LP64__
+typedef uint64_t uintptr_t;
+#else
+typedef uint32_t uintptr_t;
+#endif
+#endif
 
 // Boolean type  
 #ifndef __cplusplus
@@ -80,5 +115,31 @@ struct statfs {
     uint32_t f_flags;    // Mount flags
     uint32_t f_spare[4]; // Spare for future use
 };
+
+// POSIX file locking structure
+struct flock {
+    short l_type;       // Type of lock: F_RDLCK, F_WRLCK, F_UNLCK
+    short l_whence;     // How to interpret l_start: SEEK_SET, SEEK_CUR, SEEK_END
+    off_t l_start;      // Starting offset for lock
+    off_t l_len;        // Number of bytes to lock
+    pid_t l_pid;        // PID of process blocking our lock (F_GETLK only)
+};
+
+// POSIX lock commands (for fcntl)
+#define F_GETLK     5   // Get lock information
+#define F_SETLK     6   // Set lock (non-blocking)
+#define F_SETLKW    7   // Set lock (blocking)
+
+// POSIX lock types
+#define F_RDLCK     0   // Read lock
+#define F_WRLCK     1   // Write lock
+#define F_UNLCK     2   // Unlock
+
+// Seek whence values
+#ifndef SEEK_SET
+#define SEEK_SET    0   // Seek from beginning of file
+#define SEEK_CUR    1   // Seek from current position
+#define SEEK_END    2   // Seek from end of file
+#endif
 
 #endif

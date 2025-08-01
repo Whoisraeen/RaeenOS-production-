@@ -104,6 +104,19 @@ void* memset(void* s, int c, size_t n) {
     return s;
 }
 
+// Copies up to n characters from src to dest.
+char* strncpy(char* dest, const char* src, size_t n) {
+    size_t i;
+    for (i = 0; i < n && src[i] != '\0'; i++) {
+        dest[i] = src[i];
+    }
+    // Pad with null bytes if necessary
+    for (; i < n; i++) {
+        dest[i] = '\0';
+    }
+    return dest;
+}
+
 // Compares n bytes of memory.
 int memcmp(const void* s1, const void* s2, size_t n) {
     const unsigned char* p1 = s1;

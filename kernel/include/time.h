@@ -1,7 +1,11 @@
 #ifndef TIME_H
 #define TIME_H
 
+#ifndef __KERNEL__
 #include <stdint.h>
+#else
+#include "types.h"
+#endif
 
 // Structure for timeval (seconds and microseconds)
 typedef struct {
