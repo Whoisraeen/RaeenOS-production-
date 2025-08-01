@@ -1,7 +1,9 @@
 #ifndef EXEC_H
 #define EXEC_H
 
-#include <stdint.h>
+#include "include/types.h"
+#include "process/process.h"
+#include "paging.h"
 
 #define USER_STACK_TOP    0xC0000000
 #define USER_STACK_SIZE   0x4000 // 16 KB
@@ -48,7 +50,7 @@ struct page_directory_s;
  * @param argv The argument vector.
  * @return A pointer to the new process_t, or NULL on failure.
  */
-struct process_s* exec_load(const char* path, int argc, char** argv);
+process_t* exec_load(const char* path, int argc, char** argv);
 
 /**
  * @brief Loads an executable into an existing address space, replacing its content.
@@ -57,6 +59,6 @@ struct process_s* exec_load(const char* path, int argc, char** argv);
  * @param page_dir The page directory of the address space to load into.
  * @return The virtual address of the new entry point, or 0 on failure.
  */
-uint32_t exec_load_into_address_space(const char* path, struct page_directory_s* page_dir);
+uint32_t exec_load_into_address_space(const char* path, page_directory_t* page_dir);
 
 #endif // EXEC_H

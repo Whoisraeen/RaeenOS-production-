@@ -13,6 +13,15 @@
 #include "../userland/include/errno.h"
 #include <stdbool.h>
 
+// File operation flags (POSIX-compatible)
+#define O_RDONLY    0x0000
+#define O_WRONLY    0x0001
+#define O_RDWR      0x0002
+#define O_CREAT     0x0040
+#define O_EXCL      0x0080
+#define O_TRUNC     0x0200
+#define O_APPEND    0x0400
+
 // Array of function pointers for the system call handlers.
 static void* syscall_routines[] = {
     [SYS_EXIT] = sys_exit,
@@ -163,29 +172,165 @@ int sys_exec(struct registers_t* regs) {
     const char* const* argv = (const char* const*)regs->ecx;
 
     // TODO: Safely read path and argv from user space
+    // For now, assume the path and argv are valid kernel addresses
 
-    // Load the executable
-    uintptr_t entry_point;
-    page_directory_t* new_page_dir = exec_load(path, argv, &entry_point);
-
-    if (!new_page_dir) {
-        return -ENOENT; // Or other error from exec_load
+    // Count arguments in argv
+    int argc = 0;
+    if (argv) {
+        while (argv[argc] != NULL) {
+            argc++;
+        }
     }
 
-    // Switch to the new address space
+    // Load the executable using exec_load_into_address_space
     process_t* current = get_current_process();
+    
+    // Free the current user-space pages
     paging_free_user_pages(current->page_directory);
-    // kfree(current->page_directory); // We should free the old directory structure
-    current->page_directory = new_page_dir;
-    paging_switch_directory(new_page_dir);
+    
+    // Load the new executable into the current address space
+    uint32_t entry_point = exec_load_into_address_space(path, current->page_directory);
+    
+    if (entry_point == 0) {
+        return -ENOENT; // Failed to load executable
+    }
 
-    // TODO: Set up the new user stack with arguments
-    uintptr_t user_stack_ptr = USER_STACK_TOP;
+    // Set up the new user stack with arguments
+    // TODO: Implement proper argument passing on the stack
+    uintptr_t user_stack_ptr = USER_STACK_TOP - sizeof(uintptr_t);
 
     // Modify the interrupt frame to start the new program
     regs->eip = entry_point;
     regs->useresp = user_stack_ptr;
+    
+    // Reset the stack pointer for user mode
+    regs->esp = user_stack_ptr;
 
-    // exec does not return on success
-    return 0; // This return value will be in eax when the new program starts
+    // exec does not return on success - the return value is irrelevant
+    // as the process will start executing at the new entry point
+    return 0;
+}
+
+// --- File I/O System Calls ---
+
+int sys_open(const char* path, int flags, int mode) {
+    // Validate user-space pointer
+    if (!is_valid_userspace_ptr((void*)path, strlen(path) + 1)) {
+        return -EFAULT;
+    }
+
+    process_t* current = get_current_process();
+    
+    // Find an available file descriptor
+    int fd = -1;
+    for (int i = 0; i < MAX_PROCESS_FDS; i++) {
+        if (current->fd_table[i] == NULL) {
+            fd = i;
+            break;
+        }
+    }
+    
+    if (fd == -1) {
+        return -EMFILE; // Too many open files
+    }
+
+    // Use VFS to open the file
+    vfs_node_t* node = vfs_find(path);
+    if (!node) {
+        if (flags & O_CREAT) {
+            // Create the file if it doesn't exist and O_CREAT is set
+            // TODO: Implement file creation through VFS
+            return -ENOENT; // For now, return file not found
+        } else {
+            return -ENOENT; // File not found
+        }
+    }
+
+    // Check permissions
+    // TODO: Implement proper permission checking based on mode and node permissions
+
+    // Open the file through VFS
+    if (node->open) {
+        node->open(node, flags);
+    }
+
+    // Assign the node to the file descriptor
+    current->fd_table[fd] = node;
+    
+    return fd;
+}
+
+int sys_close(int fd) {
+    process_t* current = get_current_process();
+    
+    // Validate file descriptor
+    if (fd < 0 || fd >= MAX_PROCESS_FDS || current->fd_table[fd] == NULL) {
+        return -EBADF; // Bad file descriptor
+    }
+
+    vfs_node_t* node = current->fd_table[fd];
+    
+    // Close the file through VFS
+    if (node->close) {
+        node->close(node);
+    }
+
+    // Clear the file descriptor
+    current->fd_table[fd] = NULL;
+    
+    return 0;
+}
+
+int sys_read(int fd, void* buffer, size_t count) {
+    process_t* current = get_current_process();
+    
+    // Validate file descriptor
+    if (fd < 0 || fd >= MAX_PROCESS_FDS || current->fd_table[fd] == NULL) {
+        return -EBADF; // Bad file descriptor
+    }
+
+    // Validate user-space buffer
+    if (!is_valid_userspace_ptr(buffer, count)) {
+        return -EFAULT;
+    }
+
+    vfs_node_t* node = current->fd_table[fd];
+    
+    // Check if the node supports reading
+    if (!node->read) {
+        return -EINVAL; // Invalid operation
+    }
+
+    // Read from the file through VFS
+    // TODO: Handle file position properly - for now assume sequential reads from 0
+    uint32_t bytes_read = node->read(node, 0, count, (uint8_t*)buffer);
+    
+    return (int)bytes_read;
+}
+
+int sys_write(int fd, const void* buffer, size_t count) {
+    process_t* current = get_current_process();
+    
+    // Validate file descriptor
+    if (fd < 0 || fd >= MAX_PROCESS_FDS || current->fd_table[fd] == NULL) {
+        return -EBADF; // Bad file descriptor
+    }
+
+    // Validate user-space buffer
+    if (!is_valid_userspace_ptr((void*)buffer, count)) {
+        return -EFAULT;
+    }
+
+    vfs_node_t* node = current->fd_table[fd];
+    
+    // Check if the node supports writing
+    if (!node->write) {
+        return -EINVAL; // Invalid operation
+    }
+
+    // Write to the file through VFS
+    // TODO: Handle file position properly - for now assume sequential writes from 0
+    uint32_t bytes_written = node->write(node, 0, count, (const uint8_t*)buffer);
+    
+    return (int)bytes_written;
 }

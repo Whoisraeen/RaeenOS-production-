@@ -2,7 +2,7 @@
 #include "vga.h"
 #include "pmm.h"
 #include "paging.h"
-#include "drivers/ata/ata.h"
+#include "../drivers/ata/ata.h"
 
 // For now, a very simplistic swap space on the first ATA drive
 #define SWAP_START_LBA 1024 // Start after bootloader/kernel

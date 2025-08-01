@@ -85,6 +85,17 @@ page_directory_t* paging_clone_directory(page_directory_t* src);
  */
 void paging_free_directory(page_directory_t* dir);
 
+/**
+ * @brief Frees all user-space pages from a page directory.
+ * 
+ * This function frees all user-space page tables and their mapped physical frames
+ * but does not free the page directory itself. Used during exec() to clear
+ * the address space while keeping the page directory structure.
+ * 
+ * @param dir The page directory to free user pages from.
+ */
+void paging_free_user_pages(page_directory_t* dir);
+
 // Checks if a given virtual address is a valid userspace pointer.
 bool is_valid_userspace_ptr(void* addr, size_t size);
 

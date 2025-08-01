@@ -1,8 +1,7 @@
 #ifndef MODULE_SIGNING_H
 #define MODULE_SIGNING_H
 
-#include <stdint.h>
-#include <stdbool.h>
+#include "include/types.h"
 
 // Initialize module signing verification
 void module_signing_init(void);

@@ -1,6 +1,6 @@
 #include "include/event.h"
-#include "memory.h"
 #include <stdbool.h>
+#include "memory.h"
 
 #define EVENT_QUEUE_SIZE 128
 

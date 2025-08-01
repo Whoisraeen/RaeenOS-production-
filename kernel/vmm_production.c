@@ -20,13 +20,7 @@
 #include "vga.h"
 
 // Forward declarations
-static vm_area_t* __vmm_find_vma_prepare(address_space_t* mm, uint64_t addr,
-                                         vm_area_t** pprev);
 static int vmm_insert_vma(address_space_t* mm, vm_area_t* vma);
-static uint64_t vmm_get_unmapped_area(address_space_t* mm, uint64_t addr, 
-                                     size_t len, uint32_t flags);
-static int vmm_do_mmap_pgoff(address_space_t* mm, uint64_t addr, size_t len,
-                            uint32_t prot, uint32_t flags, int fd, uint64_t pgoff);
 static void vmm_arch_pick_mmap_base(address_space_t* mm);
 
 // Global VMM manager instance
@@ -83,7 +77,7 @@ int vmm_init(void) {
     // Map first 4GB of physical memory to VMM_KERNEL_DIRECT_MAP
     uint64_t phys_addr = 0;
     uint64_t virt_addr = VMM_KERNEL_DIRECT_MAP;
-    size_t direct_map_size = 0x100000000ULL;  // 4GB
+    size_t direct_map_size = (sizeof(void*) == 8) ? 0x100000000ULL : 0x80000000ULL;  // 4GB on 64-bit, 2GB on 32-bit
     
     // Map in 2MB huge pages for efficiency
     for (; phys_addr < direct_map_size; phys_addr += 0x200000, virt_addr += 0x200000) {
@@ -167,15 +161,15 @@ void vmm_destroy_address_space(address_space_t* mm) {
     for (int pml4_idx = 0; pml4_idx < 256; pml4_idx++) {  // User space only
         if (!(pgd->entries[pml4_idx] & VMM_PTE_PRESENT)) continue;
         
-        pdpt_t* pdpt = (pdpt_t*)(pgd->entries[pml4_idx] & ~VMM_PAGE_MASK);
+        pdpt_t* pdpt = (pdpt_t*)(uintptr_t)(pgd->entries[pml4_idx] & ~VMM_PAGE_MASK);
         for (int pdpt_idx = 0; pdpt_idx < VMM_PDPT_ENTRIES; pdpt_idx++) {
             if (!(pdpt->entries[pdpt_idx] & VMM_PTE_PRESENT)) continue;
             
-            page_directory_t* pd = (page_directory_t*)(pdpt->entries[pdpt_idx] & ~VMM_PAGE_MASK);
+            page_directory_t* pd = (page_directory_t*)(uintptr_t)(pdpt->entries[pdpt_idx] & ~VMM_PAGE_MASK);
             for (int pd_idx = 0; pd_idx < VMM_PD_ENTRIES; pd_idx++) {
                 if (!(pd->entries[pd_idx] & VMM_PTE_PRESENT)) continue;
                 
-                page_table_t* pt = (page_table_t*)(pd->entries[pd_idx] & ~VMM_PAGE_MASK);
+                page_table_t* pt = (page_table_t*)(uintptr_t)(pd->entries[pd_idx] & ~VMM_PAGE_MASK);
                 pmm_free_page(pt);
             }
             pmm_free_page(pd);
@@ -197,7 +191,7 @@ void vmm_switch_address_space(address_space_t* mm) {
     if (!mm) return;
     
     // Load new page directory into CR3
-    uint64_t pgd_phys = vmm_virt_to_phys(vmm->kernel_mm, (uint64_t)mm->pgd);
+    uint64_t pgd_phys = vmm_virt_to_phys(vmm->kernel_mm, (uintptr_t)mm->pgd);
     asm volatile("mov %0, %%cr3" :: "r"(pgd_phys) : "memory");
 }
 
@@ -265,12 +259,12 @@ uint64_t* vmm_walk_page_table(address_space_t* mm, uint64_t vaddr, bool create_m
         pdpt_t* pdpt = (pdpt_t*)pmm_alloc_page(MM_FLAG_KERNEL | MM_FLAG_ZERO, -1);
         if (!pdpt) return NULL;
         
-        uint64_t pdpt_phys = vmm_virt_to_phys(vmm->kernel_mm, (uint64_t)pdpt);
+        uint64_t pdpt_phys = vmm_virt_to_phys(vmm->kernel_mm, (uintptr_t)pdpt);
         pgd->entries[pml4_idx] = pdpt_phys | VMM_PTE_PRESENT | VMM_PTE_WRITE | VMM_PTE_USER;
     }
     
     // Get PDPT
-    pdpt_t* pdpt = (pdpt_t*)(pgd->entries[pml4_idx] & ~VMM_PAGE_MASK);
+    pdpt_t* pdpt = (pdpt_t*)(uintptr_t)(pgd->entries[pml4_idx] & ~VMM_PAGE_MASK);
     
     // Check PDPT entry
     if (!(pdpt->entries[pdpt_idx] & VMM_PTE_PRESENT)) {
@@ -279,12 +273,12 @@ uint64_t* vmm_walk_page_table(address_space_t* mm, uint64_t vaddr, bool create_m
         page_directory_t* pd = (page_directory_t*)pmm_alloc_page(MM_FLAG_KERNEL | MM_FLAG_ZERO, -1);
         if (!pd) return NULL;
         
-        uint64_t pd_phys = vmm_virt_to_phys(vmm->kernel_mm, (uint64_t)pd);
+        uint64_t pd_phys = vmm_virt_to_phys(vmm->kernel_mm, (uintptr_t)pd);
         pdpt->entries[pdpt_idx] = pd_phys | VMM_PTE_PRESENT | VMM_PTE_WRITE | VMM_PTE_USER;
     }
     
     // Get page directory
-    page_directory_t* pd = (page_directory_t*)(pdpt->entries[pdpt_idx] & ~VMM_PAGE_MASK);
+    page_directory_t* pd = (page_directory_t*)(uintptr_t)(pdpt->entries[pdpt_idx] & ~VMM_PAGE_MASK);
     
     // Check PD entry
     if (!(pd->entries[pd_idx] & VMM_PTE_PRESENT)) {
@@ -293,12 +287,12 @@ uint64_t* vmm_walk_page_table(address_space_t* mm, uint64_t vaddr, bool create_m
         page_table_t* pt = (page_table_t*)pmm_alloc_page(MM_FLAG_KERNEL | MM_FLAG_ZERO, -1);
         if (!pt) return NULL;
         
-        uint64_t pt_phys = vmm_virt_to_phys(vmm->kernel_mm, (uint64_t)pt);
+        uint64_t pt_phys = vmm_virt_to_phys(vmm->kernel_mm, (uintptr_t)pt);
         pd->entries[pd_idx] = pt_phys | VMM_PTE_PRESENT | VMM_PTE_WRITE | VMM_PTE_USER;
     }
     
     // Get page table
-    page_table_t* pt = (page_table_t*)(pd->entries[pd_idx] & ~VMM_PAGE_MASK);
+    page_table_t* pt = (page_table_t*)(uintptr_t)(pd->entries[pd_idx] & ~VMM_PAGE_MASK);
     
     return &pt->entries[pt_idx];
 }
@@ -389,7 +383,7 @@ static int vmm_insert_vma(address_space_t* mm, vm_area_t* vma) {
     
     // Find insertion point in linked list and rb-tree
     while (*p) {
-        struct rb_node* parent;
+        // struct rb_node* parent;  // Unused variable
         vm_area_t* curr = *p;
         
         if (vma->vm_start < curr->vm_start) {
@@ -453,7 +447,7 @@ int vmm_handle_page_fault(address_space_t* mm, uint64_t addr, uint64_t error_cod
             return -ENOMEM;
         }
         
-        uint64_t paddr = (uint64_t)page;
+        uint64_t paddr = (uintptr_t)page;
         uint32_t prot = 0;
         
         if (vma->vm_prot & MM_PROT_READ) prot |= MM_PROT_READ;
@@ -469,7 +463,7 @@ int vmm_handle_page_fault(address_space_t* mm, uint64_t addr, uint64_t error_cod
         
         // Zero the page for anonymous mappings
         if (vma->vm_type == VMA_TYPE_ANONYMOUS) {
-            memset((void*)vmm_page_align(addr), 0, VMM_PAGE_SIZE);
+            memset((void*)(uintptr_t)vmm_page_align(addr), 0, VMM_PAGE_SIZE);
         }
         
         mm->vm_stats.minor_faults++;
@@ -503,10 +497,10 @@ int vmm_handle_cow_fault(address_space_t* mm, vm_area_t* vma, uint64_t addr) {
     }
     
     // Copy old page content to new page
-    memcpy(new_page, (void*)old_paddr, VMM_PAGE_SIZE);
+    memcpy(new_page, (void*)(uintptr_t)old_paddr, VMM_PAGE_SIZE);
     
     // Update page table entry
-    uint64_t new_entry = (uint64_t)new_page | VMM_PTE_PRESENT | VMM_PTE_WRITE;
+    uint64_t new_entry = (uintptr_t)new_page | VMM_PTE_PRESENT | VMM_PTE_WRITE;
     if (vma->vm_prot & MM_PROT_USER) new_entry |= VMM_PTE_USER;
     if (!(vma->vm_prot & MM_PROT_EXEC)) new_entry |= VMM_PTE_NX;
     
@@ -554,10 +548,14 @@ bool vmm_is_kernel_address(uint64_t addr) {
 /**
  * Flush TLB for address range
  */
-void vmm_flush_tlb_range(address_space_t* mm, uint64_t start, uint64_t end) {
+void vmm_flush_tlb_range(address_space_t* mm __attribute__((unused)), uint64_t start __attribute__((unused)), uint64_t end __attribute__((unused))) {
     // For simplicity, flush entire TLB
     // In production, would use INVLPG for single pages or PCID for selective flushing
+#ifdef __x86_64__
     asm volatile("mov %%cr3, %%rax; mov %%rax, %%cr3" ::: "rax", "memory");
+#else
+    asm volatile("mov %%cr3, %%eax; mov %%eax, %%cr3" ::: "eax", "memory");
+#endif
 }
 
 /**
@@ -601,7 +599,7 @@ void vmm_dump_address_space(address_space_t* mm) {
     vga_puts("  PGD: 0x");
     
     // Simple hex printing
-    uint64_t pgd_addr = (uint64_t)mm->pgd;
+    uint64_t pgd_addr = (uintptr_t)mm->pgd;
     for (int i = 60; i >= 0; i -= 4) {
         uint64_t nibble = (pgd_addr >> i) & 0xF;
         char hex_char = (nibble < 10) ? ('0' + nibble) : ('A' + nibble - 10);
@@ -642,30 +640,30 @@ void vmm_dump_address_space(address_space_t* mm) {
 
 // Additional stub implementations for completeness
 
-int vmm_unmap_pages(address_space_t* mm, uint64_t vaddr, size_t size) {
+int vmm_unmap_pages(address_space_t* mm __attribute__((unused)), uint64_t vaddr __attribute__((unused)), size_t size __attribute__((unused))) {
     // Stub implementation
     return 0;
 }
 
-int vmm_protect_pages(address_space_t* mm, uint64_t vaddr, size_t size, uint32_t prot) {
+int vmm_protect_pages(address_space_t* mm __attribute__((unused)), uint64_t vaddr __attribute__((unused)), size_t size __attribute__((unused)), uint32_t prot __attribute__((unused))) {
     // Stub implementation  
     return 0;
 }
 
-void vmm_remove_vma(address_space_t* mm, vm_area_t* vma) {
+void vmm_remove_vma(address_space_t* mm __attribute__((unused)), vm_area_t* vma) {
     // Stub implementation
     if (vma) {
         kfree(vma);
     }
 }
 
-uint64_t vmm_mmap(address_space_t* mm, uint64_t addr, size_t len, uint32_t prot,
-                  uint32_t flags, int fd, uint64_t offset) {
+uint64_t vmm_mmap(address_space_t* mm __attribute__((unused)), uint64_t addr __attribute__((unused)), size_t len __attribute__((unused)), uint32_t prot __attribute__((unused)),
+                  uint32_t flags __attribute__((unused)), int fd __attribute__((unused)), uint64_t offset __attribute__((unused))) {
     // Stub implementation
     return 0;
 }
 
-int vmm_munmap(address_space_t* mm, uint64_t addr, size_t len) {
+int vmm_munmap(address_space_t* mm __attribute__((unused)), uint64_t addr __attribute__((unused)), size_t len __attribute__((unused))) {
     // Stub implementation
     return 0;
 }

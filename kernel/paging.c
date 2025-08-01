@@ -258,6 +258,32 @@ void paging_free_directory(page_directory_t* dir) {
     pmm_free_frame(dir);
 }
 
+void paging_free_user_pages(page_directory_t* dir) {
+    if (!dir) {
+        return;
+    }
+
+    // Free all user-space page tables and their mapped pages
+    for (int i = 0; i < 768; ++i) { // Iterate over user-space entries only
+        if (dir->entries[i] & PDE_PRESENT) {
+            page_table_t* table = (page_table_t*)(dir->entries[i] & ~0xFFF);
+            
+            for (int j = 0; j < 1024; ++j) {
+                if (table->entries[j] & PTE_PRESENT) {
+                    // Free the physical frame mapped by this page
+                    void* frame_addr = (void*)(table->entries[j] & ~0xFFF);
+                    pmm_free_frame(frame_addr);
+                    table->entries[j] = 0; // Clear the entry
+                }
+            }
+
+            // Free the physical frame occupied by the page table itself
+            pmm_free_frame(table);
+            dir->entries[i] = 0; // Clear the directory entry
+        }
+    }
+}
+
 bool is_valid_userspace_ptr(void* addr, size_t size) {
     uintptr_t start_addr = (uintptr_t)addr;
     uintptr_t end_addr = start_addr + size;

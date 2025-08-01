@@ -30,7 +30,15 @@ enum syscall_num {
 // Initialize the system call dispatcher
 void syscall_init();
 
-// System call handlers are internal to syscall.c
-// External interface is through syscall interrupt only
+// System call handler function declarations
+// These are implemented in syscall_impl.c
+void sys_exit(int status);
+int sys_fork(struct registers_t* regs);
+int sys_exec(struct registers_t* regs);
+int sys_wait(int* status);
+int sys_open(const char* path, int flags, int mode);
+int sys_close(int fd);
+int sys_read(int fd, void* buffer, size_t count);
+int sys_write(int fd, const void* buffer, size_t count);
 
 #endif // SYSCALL_H

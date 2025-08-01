@@ -100,6 +100,14 @@ struct rb_root {
     struct rb_node* rb_node;
 };
 
+// Red-black tree initialization macros
+#define RB_ROOT (struct rb_root) { NULL }
+#define RB_EMPTY_ROOT(root) ((root)->rb_node == NULL)
+
+// Red-black tree entry macro
+#define rb_entry(ptr, type, member) \
+    ((type*)((char*)(ptr) - (unsigned long)(&((type*)0)->member)))
+
 // Spinlock initialization macro
 #define SPINLOCK_INIT { .locked = 0, .name = NULL, .cpu_id = 0, .caller = NULL }
 
@@ -199,6 +207,30 @@ static inline void atomic64_dec(atomic64_t* v) {
     atomic_fetch_sub(v, 1);
 }
 
+static inline long atomic64_add_return(atomic64_t* v, long i) {
+    return atomic_fetch_add(v, i) + i;
+}
+
+static inline void atomic64_add(atomic64_t* v, long i) {
+    atomic_fetch_add(v, i);
+}
+
+static inline long atomic64_inc_return(atomic64_t* v) {
+    return atomic_fetch_add(v, 1) + 1;
+}
+
+static inline long atomic64_dec_return(atomic64_t* v) {
+    return atomic_fetch_sub(v, 1) - 1;
+}
+
+static inline bool atomic64_dec_and_test(atomic64_t* v) {
+    return atomic_fetch_sub(v, 1) == 1;
+}
+
+static inline bool atomic64_inc_and_test(atomic64_t* v) {
+    return atomic_fetch_add(v, 1) == -1;
+}
+
 // Bit operations
 static inline void atomic_set_bit(int nr, atomic_t* addr) {
     atomic_fetch_or(addr, (1U << nr));
@@ -285,6 +317,18 @@ struct rb_node* rb_first(struct rb_root* root);
 struct rb_node* rb_last(struct rb_root* root);
 struct rb_node* rb_next(struct rb_node* node);
 struct rb_node* rb_prev(struct rb_node* node);
+
+// Red-black tree helper functions
+void rb_link_node(struct rb_node* node, struct rb_node* parent, 
+                  struct rb_node** rb_link);
+void rb_insert_color(struct rb_node* node, struct rb_root* root);
+void rb_erase(struct rb_node* node, struct rb_root* root);
+void rb_replace_node(struct rb_node* victim, struct rb_node* new_node,
+                     struct rb_root* root);
+
+static inline void rb_init_root(struct rb_root* root) {
+    root->rb_node = NULL;
+}
 
 #ifdef __cplusplus
 }
