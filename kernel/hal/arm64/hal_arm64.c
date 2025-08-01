@@ -16,7 +16,7 @@
 #include "../../pmm_production.h"
 #include "../../vmm_production.h"
 #include "hal_arm64.h"
-#include <stddef.h>
+// Using types.h for kernel build
 #include <string.h>
 
 // ARM64 specific constants

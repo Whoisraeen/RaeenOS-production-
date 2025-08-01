@@ -1,7 +1,7 @@
 #ifndef DHCP_H
 #define DHCP_H
 
-#include <stdint.h>
+#include "include/types.h"
 #include "tcpip.h"
 
 // DHCP message types

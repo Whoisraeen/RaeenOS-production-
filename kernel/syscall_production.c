@@ -9,6 +9,8 @@
  * @date 2025-07-31
  */
 
+#define SYSCALL_PRODUCTION_MODE
+
 #include "include/syscall.h"
 #include "include/types.h"
 #include "include/sync.h"
@@ -125,7 +127,11 @@ static bool validate_user_pointer(const void* ptr, size_t size);
 static bool validate_user_string(const char* str, size_t max_len);
 static bool check_capability(uint32_t required_cap);
 static void audit_syscall(uint32_t syscall_num, int64_t result, bool allowed);
-static int64_t handle_invalid_syscall(uint32_t syscall_num);
+static int64_t handle_invalid_syscall(uint64_t arg1, uint64_t arg2, uint64_t arg3, 
+                                      uint64_t arg4, uint64_t arg5, uint64_t arg6);
+
+// External utility function declaration
+extern void uint64_to_string(uint64_t value, char* buffer, size_t buffer_size);
 
 /**
  * Initialize the system call interface
@@ -276,6 +282,8 @@ int64_t syscall_dispatch(uint32_t syscall_num, uint64_t arg1, uint64_t arg2,
 
 static int64_t sys_exit(uint64_t status, uint64_t arg2, uint64_t arg3, 
                        uint64_t arg4, uint64_t arg5, uint64_t arg6) {
+    (void)arg2; (void)arg3; (void)arg4; (void)arg5; (void)arg6; // Suppress unused warnings
+    
     // In a real implementation, this would terminate the current process
     vga_puts("SYSCALL: Process exit with status ");
     char status_str[16];
@@ -288,6 +296,8 @@ static int64_t sys_exit(uint64_t status, uint64_t arg2, uint64_t arg3,
 
 static int64_t sys_read(uint64_t fd, uint64_t buf, uint64_t count, 
                        uint64_t arg4, uint64_t arg5, uint64_t arg6) {
+    (void)arg4; (void)arg5; (void)arg6; // Suppress unused warnings
+    
     // Validate parameters
     if (!validate_user_pointer((void*)buf, count)) {
         return -EFAULT;
@@ -312,6 +322,8 @@ static int64_t sys_read(uint64_t fd, uint64_t buf, uint64_t count,
 
 static int64_t sys_write(uint64_t fd, uint64_t buf, uint64_t count, 
                         uint64_t arg4, uint64_t arg5, uint64_t arg6) {
+    (void)arg4; (void)arg5; (void)arg6; // Suppress unused warnings
+    
     // Validate parameters
     if (!validate_user_pointer((void*)buf, count)) {
         return -EFAULT;
@@ -336,6 +348,8 @@ static int64_t sys_write(uint64_t fd, uint64_t buf, uint64_t count,
 
 static int64_t sys_open(uint64_t pathname, uint64_t flags, uint64_t mode, 
                        uint64_t arg4, uint64_t arg5, uint64_t arg6) {
+    (void)mode; (void)arg4; (void)arg5; (void)arg6; // Suppress unused warnings
+    
     // Validate pathname
     if (!validate_user_string((char*)pathname, MAX_PATH_LENGTH)) {
         return -EFAULT;
@@ -355,6 +369,8 @@ static int64_t sys_open(uint64_t pathname, uint64_t flags, uint64_t mode,
 
 static int64_t sys_close(uint64_t fd, uint64_t arg2, uint64_t arg3, 
                         uint64_t arg4, uint64_t arg5, uint64_t arg6) {
+    (void)arg2; (void)arg3; (void)arg4; (void)arg5; (void)arg6; // Suppress unused warnings
+    
     // In a real implementation, this would close the file descriptor
     vga_puts("SYSCALL: Close fd ");
     char fd_str[16];
@@ -367,6 +383,8 @@ static int64_t sys_close(uint64_t fd, uint64_t arg2, uint64_t arg3,
 
 static int64_t sys_ai_query(uint64_t query_params, uint64_t arg2, uint64_t arg3, 
                            uint64_t arg4, uint64_t arg5, uint64_t arg6) {
+    (void)arg2; (void)arg3; (void)arg4; (void)arg5; (void)arg6; // Suppress unused warnings
+    
     // Validate AI query parameters structure
     if (!validate_user_pointer((void*)query_params, sizeof(struct sys_ai_query_params))) {
         return -EFAULT;
@@ -406,6 +424,8 @@ static bool validate_user_pointer(const void* ptr, size_t size) {
 }
 
 static bool validate_user_string(const char* str, size_t max_len) {
+    (void)max_len; // Suppress unused warning for now
+    
     if (!str) {
         return false;
     }
@@ -422,6 +442,8 @@ static bool validate_user_string(const char* str, size_t max_len) {
 }
 
 static bool check_capability(uint32_t required_cap) {
+    (void)required_cap; // Suppress unused warning for now
+    
     // In a real implementation, this would check the current process capabilities
     // For now, assume all capabilities are granted
     return true;
@@ -445,10 +467,14 @@ static void audit_syscall(uint32_t syscall_num, int64_t result, bool allowed) {
     }
 }
 
-static int64_t handle_invalid_syscall(uint32_t syscall_num) {
+static int64_t handle_invalid_syscall(uint64_t arg1, uint64_t arg2, uint64_t arg3, 
+                                      uint64_t arg4, uint64_t arg5, uint64_t arg6) {
+    // arg1 is typically the syscall number for invalid calls
+    (void)arg2; (void)arg3; (void)arg4; (void)arg5; (void)arg6; // Suppress unused parameter warnings
+    
     vga_puts("SYSCALL: Invalid system call number ");
     char num_str[16];
-    uint64_to_string(syscall_num, num_str, sizeof(num_str));
+    uint64_to_string(arg1, num_str, sizeof(num_str));
     vga_puts(num_str);
     vga_puts("\n");
     
@@ -485,6 +511,3 @@ int syscall_get_stats(struct syscall_stats* stats) {
 void syscall_cleanup(void) {
     syscall_mgr->initialized = false;
 }
-
-// Import utility functions
-extern void uint64_to_string(uint64_t value, char* buffer, size_t buffer_size);

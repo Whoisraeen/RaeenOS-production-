@@ -1,7 +1,7 @@
 #ifndef FAT32_H
 #define FAT32_H
 
-#include <stdint.h>
+#include "include/types.h"
 #include "../vfs.h"
 
 // FAT32 boot sector

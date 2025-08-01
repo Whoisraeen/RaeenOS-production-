@@ -1,7 +1,7 @@
 #ifndef ATA_H
 #define ATA_H
 
-#include <stdint.h>
+#include "include/types.h"
 
 // ATA PIO mode commands
 #define ATA_CMD_READ_PIO        0x20

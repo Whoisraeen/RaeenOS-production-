@@ -6,61 +6,112 @@
 // Only define types if not already defined by standard headers
 #ifndef __STDINT_H
 #ifndef _STDINT_H
+#ifndef __STDINT_H_
+#ifndef _STDINT_H_
 
 // Unsigned integer types
 #ifndef UINT8_MAX
+#ifndef __uint8_t_defined
 typedef unsigned char uint8_t;
+#define __uint8_t_defined
+#endif
 #endif
 #ifndef UINT16_MAX
+#ifndef __uint16_t_defined
 typedef unsigned short uint16_t;
+#define __uint16_t_defined
+#endif
 #endif
 #ifndef UINT32_MAX
+#ifndef __uint32_t_defined
 typedef unsigned int uint32_t;
+#define __uint32_t_defined
+#endif
 #endif
 #ifndef UINT64_MAX
+#ifndef __uint64_t_defined
+#ifdef __LP64__
+typedef unsigned long uint64_t;
+#else
 typedef unsigned long long uint64_t;
+#endif
+#define __uint64_t_defined
+#endif
 #endif
 
 // Signed integer types  
 #ifndef INT8_MAX
+#ifndef __int8_t_defined
 typedef signed char int8_t;
+#define __int8_t_defined
+#endif
 #endif
 #ifndef INT16_MAX
+#ifndef __int16_t_defined
 typedef signed short int16_t;
+#define __int16_t_defined
+#endif
 #endif
 #ifndef INT32_MAX
+#ifndef __int32_t_defined
 typedef signed int int32_t;
+#define __int32_t_defined
+#endif
 #endif
 #ifndef INT64_MAX
+#ifndef __int64_t_defined
+#ifdef __LP64__
+typedef signed long int64_t;
+#else
 typedef signed long long int64_t;
 #endif
+#define __int64_t_defined
+#endif
+#endif
 
+#endif // _STDINT_H_
+#endif // __STDINT_H_
 #endif // _STDINT_H
 #endif // __STDINT_H
 
-// Standard C types - use standard definitions if available
+// Standard C types - architecture aware
 #ifndef _SIZE_T_DEFINED
 #ifndef __SIZE_T
 #ifndef _SIZE_T
+#ifdef __LP64__
+typedef uint64_t size_t;
+#else
 typedef uint32_t size_t;
 #endif
 #endif
 #endif
+#endif
 #ifndef _SSIZE_T_DEFINED
+#ifdef __LP64__
+typedef int64_t ssize_t;
+#else
 typedef int32_t ssize_t;
+#endif
 #endif
 #ifndef _PTRDIFF_T
 #ifndef __PTRDIFF_T
+#ifdef __LP64__
+typedef int64_t ptrdiff_t;
+#else
 typedef int32_t ptrdiff_t;
+#endif
 #endif
 #endif
 
 // Pointer-sized integer - use standard if available
 #ifndef _UINTPTR_T_DEFINED
+#ifndef __uintptr_t_defined
 #ifdef __LP64__
-typedef uint64_t uintptr_t;
+typedef unsigned long uintptr_t;
 #else
 typedef uint32_t uintptr_t;
+#endif
+#define __uintptr_t_defined
 #endif
 #endif
 
@@ -74,6 +125,32 @@ typedef enum { false = 0, true = 1 } bool;
 // Null pointer
 #ifndef NULL
 #define NULL ((void*)0)
+#endif
+
+// Standard limits
+#ifndef UINT8_MAX
+#define UINT8_MAX   255
+#endif
+#ifndef UINT16_MAX
+#define UINT16_MAX  65535
+#endif
+#ifndef UINT32_MAX
+#define UINT32_MAX  4294967295U
+#endif
+#ifndef UINT64_MAX
+#define UINT64_MAX  18446744073709551615ULL
+#endif
+#ifndef INT8_MAX
+#define INT8_MAX    127
+#endif
+#ifndef INT16_MAX
+#define INT16_MAX   32767
+#endif
+#ifndef INT32_MAX
+#define INT32_MAX   2147483647
+#endif
+#ifndef INT64_MAX
+#define INT64_MAX   9223372036854775807LL
 #endif
 
 // Memory alignment

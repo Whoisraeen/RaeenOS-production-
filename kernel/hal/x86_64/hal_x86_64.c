@@ -13,14 +13,15 @@
 #include "../../include/hal_interface.h"
 #include "../../include/types.h"
 #include "../../include/errno.h"
+#include "../../include/memory_interface.h"
 #include "../../pmm_production.h"
 #include "../../vmm_production.h"
 #include "hal_x86_64.h"
-#include <stddef.h>
-#include <string.h>
+// Using types.h for kernel build
+// Using types.h for kernel build
 
 // x86-64 specific constants
-#define X86_64_PAGE_SIZE        4096
+// X86_64_PAGE_SIZE already defined in hal_x86_64.h
 #define X86_64_CACHE_LINE_SIZE  64
 #define MSR_IA32_TSC            0x10
 #define MSR_IA32_APIC_BASE      0x1B
@@ -66,7 +67,7 @@ static uint64_t calibrate_tsc(void);
 static void setup_smp(void);
 
 // Assembly helper functions
-extern void x86_64_cpu_pause(void);
+// x86_64_cpu_pause defined below
 extern void x86_64_memory_barrier(void);
 extern uint64_t x86_64_read_tsc(void);
 extern uint64_t x86_64_read_msr(uint32_t msr);
@@ -127,7 +128,7 @@ static void x86_64_cpu_idle(void)
     __asm__ volatile("hlt");
 }
 
-static void x86_64_cpu_halt(void)
+static void __attribute__((noreturn)) x86_64_cpu_halt(void)
 {
     __asm__ volatile("cli; hlt");
     while (1) {
@@ -140,9 +141,35 @@ static uint64_t x86_64_cpu_timestamp(void)
     return x86_64_read_tsc();
 }
 
-static void x86_64_cpu_pause(void)
+void x86_64_cpu_pause(void)
 {
     __asm__ volatile("pause" ::: "memory");
+}
+
+void x86_64_memory_barrier(void)
+{
+    __asm__ volatile("mfence" ::: "memory");
+}
+
+uint64_t x86_64_read_tsc(void)
+{
+    uint32_t low, high;
+    __asm__ volatile("rdtsc" : "=a"(low), "=d"(high));
+    return ((uint64_t)high << 32) | low;
+}
+
+uint64_t x86_64_read_msr(uint32_t msr)
+{
+    uint32_t low, high;
+    __asm__ volatile("rdmsr" : "=a"(low), "=d"(high) : "c"(msr));
+    return ((uint64_t)high << 32) | low;
+}
+
+void x86_64_write_msr(uint32_t msr, uint64_t value)
+{
+    uint32_t low = value & 0xFFFFFFFF;
+    uint32_t high = value >> 32;
+    __asm__ volatile("wrmsr" : : "a"(low), "d"(high), "c"(msr));
 }
 
 static void x86_64_cpu_memory_barrier(void)
@@ -204,53 +231,107 @@ static void x86_64_smp_send_ipi(uint32_t cpu_id, uint32_t vector)
  */
 static void* x86_64_mem_alloc_pages(size_t pages, uint32_t flags)
 {
-    // Use existing PMM implementation
-    return pmm_alloc_pages(pages);
+    // Convert pages to order (log2 of pages)
+    unsigned int order = 0;
+    size_t size = pages;
+    while (size > 1) {
+        size >>= 1;
+        order++;
+    }
+    
+    // Convert HAL flags to PMM flags
+    unsigned int pmm_flags = GFP_KERNEL;
+    if (flags & HAL_MEM_ATOMIC) pmm_flags |= GFP_ATOMIC;
+    if (flags & HAL_MEM_ZERO) pmm_flags |= GFP_ZERO;
+    
+    // Use existing PMM implementation with proper signature
+    return pmm_alloc_pages(order, pmm_flags, -1); // Any NUMA node
 }
 
 static void x86_64_mem_free_pages(void* addr, size_t pages)
 {
-    // Use existing PMM implementation
-    pmm_free_pages(addr, pages);
+    // Convert pages to order (log2 of pages)
+    unsigned int order = 0;
+    size_t size = pages;
+    while (size > 1) {
+        size >>= 1;
+        order++;
+    }
+    
+    // Use existing PMM implementation with proper signature
+    pmm_free_pages(addr, order);
 }
 
 static int x86_64_mem_map_physical(phys_addr_t phys, void* virt, size_t size, uint32_t flags)
 {
-    // Convert HAL flags to VMM flags
-    uint32_t vmm_flags = 0;
-    if (flags & HAL_MEM_READ) vmm_flags |= VMM_FLAG_READ;
-    if (flags & HAL_MEM_WRITE) vmm_flags |= VMM_FLAG_WRITE;
-    if (flags & HAL_MEM_EXECUTE) vmm_flags |= VMM_FLAG_EXEC;
-    if (flags & HAL_MEM_USER) vmm_flags |= VMM_FLAG_USER;
-    if (flags & HAL_MEM_NOCACHE) vmm_flags |= VMM_FLAG_NOCACHE;
+    // Convert HAL flags to MM protection flags
+    uint32_t prot = 0;
+    if (flags & HAL_MEM_READ) prot |= MM_PROT_READ;
+    if (flags & HAL_MEM_WRITE) prot |= MM_PROT_WRITE;
+    if (flags & HAL_MEM_EXECUTE) prot |= MM_PROT_EXEC;
+    if (flags & HAL_MEM_USER) prot |= MM_PROT_USER;
+    if (flags & HAL_MEM_KERNEL) prot |= MM_PROT_KERNEL;
+    if (flags & HAL_MEM_NOCACHE) prot |= MM_PROT_NOCACHE;
     
-    return vmm_map_physical(phys, (uint64_t)virt, size, vmm_flags);
+    // Use memory interface through operations table
+    extern memory_operations_t* mem_ops;
+    if (mem_ops && mem_ops->vmm_map) {
+        return mem_ops->vmm_map(virt, phys, size, prot);
+    }
+    
+    return -ENOSYS;
 }
 
 static int x86_64_mem_unmap(void* virt, size_t size)
 {
-    return vmm_unmap((uint64_t)virt, size);
+    // Use memory interface through operations table
+    extern memory_operations_t* mem_ops;
+    if (mem_ops && mem_ops->vmm_unmap) {
+        return mem_ops->vmm_unmap(virt, size);
+    }
+    
+    return -ENOSYS;
 }
 
 static int x86_64_mem_protect(void* virt, size_t size, uint32_t flags)
 {
-    uint32_t vmm_flags = 0;
-    if (flags & HAL_MEM_READ) vmm_flags |= VMM_FLAG_READ;
-    if (flags & HAL_MEM_WRITE) vmm_flags |= VMM_FLAG_WRITE;
-    if (flags & HAL_MEM_EXECUTE) vmm_flags |= VMM_FLAG_EXEC;
-    if (flags & HAL_MEM_USER) vmm_flags |= VMM_FLAG_USER;
+    // Convert HAL flags to MM protection flags
+    uint32_t prot = 0;
+    if (flags & HAL_MEM_READ) prot |= MM_PROT_READ;
+    if (flags & HAL_MEM_WRITE) prot |= MM_PROT_WRITE;
+    if (flags & HAL_MEM_EXECUTE) prot |= MM_PROT_EXEC;
+    if (flags & HAL_MEM_USER) prot |= MM_PROT_USER;
+    if (flags & HAL_MEM_KERNEL) prot |= MM_PROT_KERNEL;
     
-    return vmm_protect((uint64_t)virt, size, vmm_flags);
+    // Use memory interface through operations table
+    extern memory_operations_t* mem_ops;
+    if (mem_ops && mem_ops->vmm_protect) {
+        return mem_ops->vmm_protect(virt, size, prot);
+    }
+    
+    return -ENOSYS;
 }
 
 static phys_addr_t x86_64_mem_virt_to_phys(void* virt)
 {
-    return vmm_virt_to_phys((uint64_t)virt);
+    // Use memory interface through operations table
+    extern memory_operations_t* mem_ops;
+    if (mem_ops && mem_ops->vmm_virt_to_phys) {
+        return mem_ops->vmm_virt_to_phys(virt);
+    }
+    
+    return 0; // Invalid physical address
 }
 
 static void* x86_64_mem_phys_to_virt(phys_addr_t phys)
 {
-    return (void*)vmm_phys_to_virt(phys);
+    // Use memory interface through operations table
+    extern memory_operations_t* mem_ops;
+    if (mem_ops && mem_ops->vmm_phys_to_virt) {
+        return mem_ops->vmm_phys_to_virt(phys);
+    }
+    
+    return NULL; // Invalid virtual address
 }
 
 static int x86_64_mem_get_regions(hal_memory_region_t* regions, size_t* count)

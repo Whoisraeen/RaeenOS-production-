@@ -5,7 +5,7 @@
 #include "memory.h" // For kmalloc
 #include "string.h" // For memcpy
 #include "include/multiboot.h" // Include multiboot header
-#include <stddef.h>
+// Using types.h instead of stddef.h for kernel build
 
 // Framebuffer properties - to be populated by the bootloader info
 static uint32_t* framebuffer_addr = NULL;

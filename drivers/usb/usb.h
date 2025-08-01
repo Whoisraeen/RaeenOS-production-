@@ -1,7 +1,7 @@
 #ifndef USB_H
 #define USB_H
 
-#include <stdint.h>
+#include "include/types.h"
 
 // USB Host Controller Interface (HCI) types
 typedef enum {

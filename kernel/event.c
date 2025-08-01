@@ -1,5 +1,5 @@
 #include "include/event.h"
-#include <stdbool.h>
+// Using types.h for kernel build
 #include "memory.h"
 
 #define EVENT_QUEUE_SIZE 128

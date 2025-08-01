@@ -38,7 +38,7 @@ typedef struct {
 
 // Event queue functions
 void event_queue_init(void);
-bool event_queue_push(event_t event);
-bool event_queue_pop(event_t* event);
+_Bool event_queue_push(event_t event);
+_Bool event_queue_pop(event_t* event);
 
 #endif // EVENT_H

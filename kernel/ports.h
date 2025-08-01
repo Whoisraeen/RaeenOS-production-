@@ -3,7 +3,7 @@
 #ifndef PORTS_H
 #define PORTS_H
 
-#include <stdint.h>
+#include "include/types.h"
 
 // Read a byte from a port
 static inline uint8_t inb(uint16_t port) {

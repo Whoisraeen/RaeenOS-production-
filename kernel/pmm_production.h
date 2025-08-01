@@ -17,7 +17,7 @@
  * @date 2025-07-31
  */
 
-#include "types.h"
+#include "include/types.h"
 #include "include/sync.h"
 
 #ifdef __cplusplus
@@ -28,9 +28,15 @@ extern "C" {
 typedef struct memory_stats memory_stats_t;
 
 // Memory allocation flags (subset from memory_interface.h)
+#ifndef GFP_KERNEL
 #define GFP_KERNEL      0x00000001   // Kernel memory allocation
+#endif
+#ifndef GFP_ATOMIC
 #define GFP_ATOMIC      0x00000010   // Atomic allocation (no sleep)
+#endif
+#ifndef GFP_ZERO
 #define GFP_ZERO        0x00000008   // Zero-initialized memory
+#endif
 
 // Memory zones aligned with memory_interface.h
 #define PMM_MAX_ORDER 11        // 2^11 * 4KB = 8MB max allocation

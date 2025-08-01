@@ -1,7 +1,8 @@
 #ifndef GPU_H
 #define GPU_H
 
-#include <stdint.h>
+#include "include/types.h"
+// Using types.h for kernel build
 
 // Generic GPU capabilities
 typedef struct {

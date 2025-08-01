@@ -15,7 +15,7 @@
 #include "../include/errno.h"
 #include "../pmm_production.h"
 #include "../vmm_production.h"
-#include <stddef.h>
+// Using types.h for kernel build
 
 // Maximum number of supported platforms
 #define MAX_PLATFORMS 8

@@ -5,8 +5,8 @@
 #include "ports.h"
 #include "pic.h"
 #include "include/event.h"
-#include <stdint.h>
-#include <stdbool.h>
+#include "include/types.h"
+// Using types.h for kernel build
 
 #define KBD_DATA_PORT   0x60
 #define KBD_BUFFER_SIZE 256

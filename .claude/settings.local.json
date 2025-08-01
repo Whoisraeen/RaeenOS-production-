@@ -11,7 +11,13 @@
       "Bash(chmod:*)",
       "Bash(nm:*)",
       "Bash(mkdir:*)",
-      "Bash(mv:*)"
+      "Bash(mv:*)",
+      "Bash(qemu-system-i386:*)",
+      "Bash(timeout:*)",
+      "Bash(objcopy:*)",
+      "Bash(dd:*)",
+      "Bash(cp:*)",
+      "Bash(true)"
     ],
     "deny": []
   }

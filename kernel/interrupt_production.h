@@ -19,9 +19,9 @@
  * @date 2025-07-31
  */
 
-#include <stdint.h>
-#include <stddef.h>
-#include <stdbool.h>
+#include "include/types.h"
+// Using types.h for kernel build
+// Using types.h for kernel build
 #include "types.h"
 #include "memory_interface.h"
 

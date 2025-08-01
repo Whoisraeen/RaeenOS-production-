@@ -1,8 +1,8 @@
 #ifndef E1000_H
 #define E1000_H
 
-#include <stdint.h>
-#include <stddef.h>
+#include "include/types.h"
+// Using types.h for kernel build
 
 // Initialize the E1000 network driver
 void e1000_init(uint8_t bus, uint8_t device, uint8_t function);

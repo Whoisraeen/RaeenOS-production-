@@ -1,7 +1,7 @@
 #ifndef NVME_H
 #define NVME_H
 
-#include <stdint.h>
+#include "include/types.h"
 
 // NVMe Controller Registers (simplified)
 // These are typically memory-mapped, not I/O port mapped

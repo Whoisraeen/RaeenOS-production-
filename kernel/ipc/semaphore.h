@@ -1,7 +1,7 @@
 #ifndef SEMAPHORE_H
 #define SEMAPHORE_H
 
-#include <stdint.h>
+#include "include/types.h"
 #include "../include/wait.h"
 
 // IPC Semaphore structure

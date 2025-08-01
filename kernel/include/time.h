@@ -2,7 +2,7 @@
 #define TIME_H
 
 #ifndef __KERNEL__
-#include <stdint.h>
+#include "types.h"
 #else
 #include "types.h"
 #endif

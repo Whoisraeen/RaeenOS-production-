@@ -1,8 +1,8 @@
 #ifndef PERMISSIONS_H
 #define PERMISSIONS_H
 
-#include <stdint.h>
-#include <stdbool.h>
+#include "include/types.h"
+// Using types.h for kernel build
 #include "../include/types.h"
 
 // File permission bits (simplified POSIX-like)

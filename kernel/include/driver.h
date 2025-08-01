@@ -1,8 +1,8 @@
 #ifndef DRIVER_H
 #define DRIVER_H
 
-#include <stdint.h>
-#include <stddef.h>
+#include "types.h"
+// Using types.h instead of stddef.h for kernel build
 
 // Forward declaration of device_t (if we implement a device manager later)
 struct device;

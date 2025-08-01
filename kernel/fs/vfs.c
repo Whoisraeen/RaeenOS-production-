@@ -4,7 +4,7 @@
 // filesystem tree and dispatching operations to the appropriate drivers.
 
 #include "vfs.h"
-#include <stddef.h> // For NULL
+// Using types.h for kernel build // For NULL
 #include "../string.h"
 #include "ramfs.h"
 #include "../memory.h"

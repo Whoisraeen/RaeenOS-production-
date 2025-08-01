@@ -1,7 +1,7 @@
 #ifndef NPU_H
 #define NPU_H
 
-#include <stdint.h>
+#include "include/types.h"
 
 // Initialize NPU driver
 void npu_init(void);

@@ -1,7 +1,7 @@
 #ifndef DNS_H
 #define DNS_H
 
-#include <stdint.h>
+#include "include/types.h"
 #include "tcpip.h"
 
 // DNS packet structure (simplified)

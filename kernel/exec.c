@@ -4,7 +4,7 @@
 #include "pmm.h"
 #include "paging.h"
 #include "exec.h"
-#include <stdbool.h>
+// Using types.h for kernel build
 #include "string.h"
 
 

@@ -1,7 +1,7 @@
 #ifndef PCI_H
 #define PCI_H
 
-#include <stdint.h>
+#include "include/types.h"
 
 // PCI Configuration Space Registers
 #define PCI_CONFIG_ADDRESS  0xCF8
@@ -29,6 +29,14 @@
 #define PCI_BAR4            0x20
 #define PCI_BAR5            0x24
 
+// Alternative naming (some code uses this format)
+#define PCI_BASE_ADDRESS_0  0x10
+#define PCI_BASE_ADDRESS_1  0x14
+#define PCI_BASE_ADDRESS_2  0x18
+#define PCI_BASE_ADDRESS_3  0x1C
+#define PCI_BASE_ADDRESS_4  0x20
+#define PCI_BASE_ADDRESS_5  0x24
+
 #define PCI_CAPABILITIES_PTR 0x34
 #define PCI_INTERRUPT_LINE  0x3C
 #define PCI_INTERRUPT_PIN   0x3D
@@ -55,5 +63,11 @@ uint32_t pci_read_config_dword(uint8_t bus, uint8_t device, uint8_t function, ui
 
 // Write a 32-bit value to PCI configuration space
 void pci_write_config_dword(uint8_t bus, uint8_t device, uint8_t function, uint8_t offset, uint32_t value);
+
+// Read a 16-bit value from PCI configuration space
+uint16_t pci_read_config_word(uint8_t bus, uint8_t device, uint8_t function, uint8_t offset);
+
+// Write a 16-bit value to PCI configuration space
+void pci_write_config_word(uint8_t bus, uint8_t device, uint8_t function, uint8_t offset, uint16_t value);
 
 #endif // PCI_H

@@ -17,7 +17,7 @@
 #include "../performance/hal_performance.h"
 #include "../detection/hal_hardware_detection.h"
 #include "hal_integration_tests.h"
-#include <stddef.h>
+// Using types.h for kernel build
 #include <string.h>
 
 // Test framework state

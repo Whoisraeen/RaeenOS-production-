@@ -1,7 +1,7 @@
 #ifndef SSH_H
 #define SSH_H
 
-#include <stdint.h>
+#include "include/types.h"
 
 // SSH client functions (placeholders)
 int ssh_connect(const char* host, uint16_t port, const char* username, const char* password);

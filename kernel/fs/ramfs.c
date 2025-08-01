@@ -3,7 +3,7 @@
 #include "ramfs.h"
 #include "../string.h"
 
-#include <stddef.h>
+// Using types.h for kernel build
 #include "../pmm.h"
 #include "../ipc/pipe.h"
 

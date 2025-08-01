@@ -3,8 +3,8 @@
 #ifndef WINDOW_H
 #define WINDOW_H
 
-#include <stdint.h>
-#include <stddef.h>
+#include "include/types.h"
+// Using types.h for kernel build
 
 // Forward-declare the widget structure to avoid circular includes
 struct widget_t;

@@ -2,7 +2,7 @@
 // This file contains a standard 8x8 bitmap font for printable ASCII characters.
 
 #include "font.h"
-#include <stddef.h>
+// Using types.h via font.h for kernel build
 
 // 8x8 font for ASCII characters 32-127
 // Each character is 8 bytes (rows), each bit is a pixel.

@@ -20,8 +20,8 @@
 #ifndef FAT32_PRODUCTION_H
 #define FAT32_PRODUCTION_H
 
-#include <stdint.h>
-#include <stdbool.h>
+#include "include/types.h"
+// Using types.h for kernel build
 #include "../vfs.h"
 #include "../buffer_cache.h"
 #include "../vfs_events.h"

@@ -1,8 +1,8 @@
 #ifndef FIREWALL_H
 #define FIREWALL_H
 
-#include <stdint.h>
-#include <stdbool.h>
+#include "include/types.h"
+// Using types.h for kernel build
 
 // Firewall rule action
 typedef enum {

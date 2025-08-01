@@ -1,7 +1,7 @@
 #ifndef KERNEL_DEBUGGER_H
 #define KERNEL_DEBUGGER_H
 
-#include <stdint.h>
+#include "include/types.h"
 
 // Initialize the kernel debugger
 void kernel_debugger_init(void);

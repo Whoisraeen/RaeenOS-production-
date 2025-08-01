@@ -1,7 +1,7 @@
 #ifndef MULTIBOOT_H
 #define MULTIBOOT_H
 
-#include <stdint.h>
+#include "types.h"
 
 // The magic number for the Multiboot 1 header.
 #define MULTIBOOT_BOOTLOADER_MAGIC   0x2BADB002

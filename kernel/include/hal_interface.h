@@ -31,6 +31,8 @@ extern "C" {
 #define HAL_MEM_CACHE      (1 << 5)
 #define HAL_MEM_NOCACHE    (1 << 6)
 #define HAL_MEM_DEVICE     (1 << 7)
+#define HAL_MEM_ATOMIC     (1 << 8)
+#define HAL_MEM_ZERO       (1 << 9)
 
 // IRQ flags
 #define HAL_IRQ_SHARED     (1 << 0)
@@ -61,6 +63,7 @@ typedef struct {
     bool has_virtualization;// Hardware virtualization support
     bool has_crypto;        // Hardware crypto acceleration
     bool has_atomic64;      // 64-bit atomic operations
+    bool has_apic;          // Advanced Programmable Interrupt Controller
     uint32_t cache_line_size;
     uint32_t page_size;
     uint32_t num_cores;

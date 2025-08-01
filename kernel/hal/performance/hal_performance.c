@@ -15,7 +15,7 @@
 #include "../../include/types.h"
 #include "../../include/errno.h"
 #include "hal_performance.h"
-#include <stddef.h>
+// Using types.h for kernel build
 #include <string.h>
 
 // Performance management state

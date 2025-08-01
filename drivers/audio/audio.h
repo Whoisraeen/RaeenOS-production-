@@ -1,7 +1,7 @@
 #ifndef AUDIO_H
 #define AUDIO_H
 
-#include <stdint.h>
+#include "include/types.h"
 
 // Audio format definitions
 typedef enum {

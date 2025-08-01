@@ -3,7 +3,7 @@
 #ifndef TIMER_H
 #define TIMER_H
 
-#include <stdint.h>
+#include "include/types.h"
 
 // Initializes the PIT and registers the timer interrupt handler.
 // frequency: The desired frequency of the timer interrupt in Hz.

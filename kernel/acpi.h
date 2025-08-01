@@ -4,8 +4,8 @@
 #ifndef ACPI_H
 #define ACPI_H
 
-#include <stdint.h>
-#include <stddef.h>
+#include "include/types.h"
+// Using types.h for kernel build
 
 // ACPI table signatures
 #define ACPI_RSDP_SIGNATURE     0x2052545020445352ULL  // "RSD PTR "

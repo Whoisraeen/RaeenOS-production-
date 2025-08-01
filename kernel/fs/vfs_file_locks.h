@@ -18,8 +18,8 @@
 #ifndef VFS_FILE_LOCKS_H
 #define VFS_FILE_LOCKS_H
 
-#include <stdint.h>
-#include <stdbool.h>
+#include "include/types.h"
+// Using types.h for kernel build
 #include "../include/types.h"
 #include "../include/sync.h"
 #include "../include/hal_interface.h"

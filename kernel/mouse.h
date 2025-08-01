@@ -3,7 +3,7 @@
 #ifndef MOUSE_H
 #define MOUSE_H
 
-#include <stdint.h>
+#include "include/types.h"
 #include "include/event.h"
 
 // Holds the state of the mouse

@@ -28,11 +28,11 @@ static inline bool arch_spin_trylock(volatile uint32_t* lock) {
     return !__sync_lock_test_and_set(lock, 1);
 }
 
-static inline uint32_t arch_save_flags_and_cli(void) {
-    uint32_t flags;
+static inline uint64_t arch_save_flags_and_cli(void) {
+    uint64_t flags;
     __asm__ volatile(
-        "pushf\n\t"
-        "pop %0\n\t"
+        "pushfq\n\t"
+        "popq %0\n\t"
         "cli"
         : "=r"(flags)
         :
@@ -41,10 +41,10 @@ static inline uint32_t arch_save_flags_and_cli(void) {
     return flags;
 }
 
-static inline void arch_restore_flags(uint32_t flags) {
+static inline void arch_restore_flags(uint64_t flags) {
     __asm__ volatile(
-        "push %0\n\t"
-        "popf"
+        "pushq %0\n\t"
+        "popfq"
         :
         : "r"(flags)
         : "memory"
@@ -93,14 +93,14 @@ bool spin_trylock(spinlock_t* lock) {
     return false;
 }
 
-void spin_lock_irqsave(spinlock_t* lock, uint32_t* flags) {
+void spin_lock_irqsave(spinlock_t* lock, uint64_t* flags) {
     if (!lock || !flags) return;
     
     *flags = arch_save_flags_and_cli();
     spin_lock(lock);
 }
 
-void spin_unlock_irqrestore(spinlock_t* lock, uint32_t flags) {
+void spin_unlock_irqrestore(spinlock_t* lock, uint64_t flags) {
     if (!lock) return;
     
     spin_unlock(lock);

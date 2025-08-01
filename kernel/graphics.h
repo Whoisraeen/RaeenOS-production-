@@ -1,19 +1,20 @@
-// RaeenOS Graphics Driver Interface
-
-#ifndef GRAPHICS_H
-#define GRAPHICS_H
+#pragma once
 
 #include <stdint.h>
-#include "include/multiboot.h"
 
-/**
- * @brief Initializes the graphics subsystem.
- * 
- * This function should be called once at boot. It assumes the bootloader
- * has already set a VBE/VESA graphics mode and provided the necessary
- * information (e.g., via a multiboot structure).
- * 
- * @param mboot_info A pointer to the multiboot_info_t structure.
+// Forward declaration for multiboot info
+struct multiboot_info_t;
+
+// Basic graphics functions assumed to be provided by the kernel
+int graphics_init(struct multiboot_info_t* mboot_info);
+void graphics_put_pixel(uint32_t x, uint32_t y, uint32_t color);
+void graphics_draw_rect(uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t color);
+void graphics_fill_rect(uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t color);
+void graphics_clear_screen(uint32_t color);
+void graphics_swap_buffers(void);
+uint32_t graphics_get_width(void);
+uint32_t graphics_get_height(void);
+void graphics_draw_string(uint32_t x, uint32_t y, const char* str, uint32_t color);
  * @return int 0 on success, -1 on failure.
  */
 int graphics_init(multiboot_info_t* mboot_info);

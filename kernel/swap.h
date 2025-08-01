@@ -1,8 +1,8 @@
 #ifndef SWAP_H
 #define SWAP_H
 
-#include <stdint.h>
-#include <stdbool.h>
+#include "include/types.h"
+// Using types.h for kernel build
 
 // Initialize the swapping mechanism
 void swap_init(void);

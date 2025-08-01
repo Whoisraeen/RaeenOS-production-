@@ -21,8 +21,8 @@
 #ifndef EXT4_H
 #define EXT4_H
 
-#include <stdint.h>
-#include <stdbool.h>
+#include "include/types.h"
+// Using types.h for kernel build
 #include "../vfs.h"
 #include "../buffer_cache.h"
 #include "../vfs_events.h"

@@ -1,7 +1,7 @@
 #ifndef FTP_H
 #define FTP_H
 
-#include <stdint.h>
+#include "include/types.h"
 
 // FTP client functions (placeholders)
 int ftp_connect(const char* host, uint16_t port, const char* username, const char* password);

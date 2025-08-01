@@ -1,7 +1,7 @@
 #ifndef HTTP_H
 #define HTTP_H
 
-#include <stdint.h>
+#include "include/types.h"
 #include "tcpip.h"
 
 // HTTP request method

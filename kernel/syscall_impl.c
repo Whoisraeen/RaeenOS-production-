@@ -11,7 +11,7 @@
 #include "paging.h"
 #include "string.h"
 #include "../userland/include/errno.h"
-#include <stdbool.h>
+// Using types.h for kernel build
 
 // File operation flags (POSIX-compatible)
 #define O_RDONLY    0x0000

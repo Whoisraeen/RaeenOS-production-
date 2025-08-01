@@ -3,7 +3,6 @@
 #include "memory.h"
 #include "pmm.h"
 #include "paging.h"
-#include <stdbool.h>
 
 // A block of memory in the heap
 typedef struct heap_block {

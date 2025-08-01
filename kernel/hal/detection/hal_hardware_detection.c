@@ -15,7 +15,7 @@
 #include "../../include/types.h"
 #include "../../include/errno.h"
 #include "hal_hardware_detection.h"
-#include <stddef.h>
+// Using types.h for kernel build
 #include <string.h>
 
 // Hardware compatibility database

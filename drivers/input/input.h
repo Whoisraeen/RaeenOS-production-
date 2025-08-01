@@ -1,7 +1,7 @@
 #ifndef INPUT_H
 #define INPUT_H
 
-#include <stdint.h>
+#include "include/types.h"
 
 // Input event types
 typedef enum {
