@@ -1,5 +1,7 @@
 #include "desktop.h"
 #include "window_manager.h"
+#include "taskbar.h"
+#include "start_menu.h"
 #include "../../kernel/vga.h"
 #include "../../kernel/graphics.h"
 #include "../../kernel/memory.h"
@@ -11,6 +13,8 @@ void desktop_init(void) {
     graphics_init(NULL); // Initialize graphics for desktop
     raeenui_init(); // Initialize RaeenUI
     wm_init(); // Initialize window manager
+    taskbar_init(); // Initialize taskbar
+    start_menu_init(); // Initialize start menu
     graphics_clear_screen(0x000000); // Black background
 }
 
@@ -28,6 +32,8 @@ void desktop_start(void) {
     // Main loop for desktop, handling events and drawing
     while (1) {
         raeenui_render_frame(); // Render RaeenUI frame
+        taskbar_draw(); // Draw taskbar
+        start_menu_draw(); // Draw start menu if visible
         // In a real desktop, this would be event-driven, reacting to mouse/keyboard input
         // For now, just redraw continuously
     }
@@ -49,7 +55,9 @@ void desktop_handle_mouse_event(uint32_t x, uint32_t y, uint8_t buttons) {
     debug_print(") buttons: ");
     vga_put_hex(buttons);
     debug_print("\n");
-    raeenui_handle_mouse_event(x, y, buttons); // Pass to RaeenUI
+    wm_handle_mouse_click(x, y, buttons); // Pass to window manager
+    taskbar_handle_event(x, y, buttons); // Pass to taskbar
+    start_menu_handle_event(x, y, buttons); // Pass to start menu
 }
 
 void desktop_handle_keyboard_event(uint8_t scancode, bool pressed) {
@@ -58,5 +66,5 @@ void desktop_handle_keyboard_event(uint8_t scancode, bool pressed) {
     debug_print(" pressed: ");
     vga_put_dec(pressed);
     debug_print("\n");
-    raeenui_handle_keyboard_event(scancode, pressed); // Pass to RaeenUI
+    wm_handle_keyboard_event(scancode, pressed); // Pass to window manager
 }

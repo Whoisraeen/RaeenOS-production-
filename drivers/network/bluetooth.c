@@ -31,4 +31,3 @@ int bluetooth_disconnect(uint64_t address) {
     debug_print(" (simulated).\n");
     return 0; // Success
 }
-

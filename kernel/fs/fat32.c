@@ -171,3 +171,60 @@ int fat32_read_file(uint32_t start_cluster, uint32_t offset, uint32_t size, uint
 
     return bytes_read;
 }
+
+int fat32_write_file(uint32_t start_cluster, uint32_t offset, uint32_t size, const uint8_t* buffer) {
+    debug_print("FAT32: Writing file to cluster ");
+    vga_put_hex(start_cluster);
+    debug_print(" offset ");
+    vga_put_dec(offset);
+    debug_print(" size ");
+    vga_put_dec(size);
+    debug_print(" (simulated).\n");
+    // In a real implementation, this would write data to the file's clusters.
+    return size;
+}
+
+int fat32_create_file(uint32_t parent_cluster, const char* filename, uint32_t* new_cluster) {
+    debug_print("FAT32: Creating file ");
+    debug_print(filename);
+    debug_print(" in cluster ");
+    vga_put_hex(parent_cluster);
+    debug_print(" (simulated).\n");
+    // In a real implementation, this would find a free cluster, update FAT, and create directory entry.
+    if (new_cluster) *new_cluster = 0; // Dummy cluster
+    return 0;
+}
+
+int fat32_create_dir(uint32_t parent_cluster, const char* dirname, uint32_t* new_cluster) {
+    debug_print("FAT32: Creating directory ");
+    debug_print(dirname);
+    debug_print(" in cluster ");
+    vga_put_hex(parent_cluster);
+    debug_print(" (simulated).\n");
+    // In a real implementation, this would find a free cluster, update FAT, and create directory entry.
+    if (new_cluster) *new_cluster = 0; // Dummy cluster
+    return 0;
+}
+
+int fat32_delete_entry(uint32_t parent_cluster, const char* name) {
+    debug_print("FAT32: Deleting ");
+    debug_print(name);
+    debug_print(" from cluster ");
+    vga_put_hex(parent_cluster);
+    debug_print(" (simulated).\n");
+    // In a real implementation, this would mark directory entry as deleted and free clusters.
+    return 0;
+}
+
+// Placeholder for FAT32 journaling
+void fat32_journal_start(void) {
+    debug_print("FAT32 Journal: Transaction started (simulated).\n");
+}
+
+void fat32_journal_commit(void) {
+    debug_print("FAT32 Journal: Transaction committed (simulated).\n");
+}
+
+void fat32_journal_rollback(void) {
+    debug_print("FAT32 Journal: Transaction rolled back (simulated).\n");
+}

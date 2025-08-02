@@ -32,6 +32,18 @@ void wm_move_window(window_t* window, uint32_t new_x, uint32_t new_y);
 // Resize a window
 void wm_resize_window(window_t* window, uint32_t new_width, uint32_t new_height);
 
+// Minimize a window
+void wm_minimize_window(window_t* window);
+
+// Maximize a window
+void wm_maximize_window(window_t* window);
+
+// Restore a window from minimized/maximized state
+void wm_restore_window(window_t* window);
+
+// Close a window
+void wm_close_window(window_t* window);
+
 // Focus a window
 void wm_focus_window(window_t* window);
 

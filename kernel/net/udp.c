@@ -10,11 +10,29 @@ static udp_receive_callback_t udp_callbacks[65536]; // Indexed by port number
 static uint16_t udp_checksum(const uint8_t* data, uint32_t size, ipv4_addr_t src_ip, ipv4_addr_t dest_ip) {
     // In a real implementation, this would calculate the UDP checksum
     // including a pseudo-header.
-    (void)data;
-    (void)size;
-    (void)src_ip;
-    (void)dest_ip;
-    return 0; // Dummy checksum
+    uint32_t sum = 0;
+    // Add pseudo-header (src_ip, dest_ip, protocol, UDP length)
+    sum += (src_ip >> 16) & 0xFFFF;
+    sum += src_ip & 0xFFFF;
+    sum += (dest_ip >> 16) & 0xFFFF;
+    sum += dest_ip & 0xFFFF;
+    sum += (uint16_t)17; // Protocol UDP
+    sum += (uint16_t)size; // UDP length
+
+    // Add UDP header and data
+    for (uint32_t i = 0; i < size; i += 2) {
+        if (i + 1 < size) {
+            sum += (data[i] << 8) | data[i+1];
+        } else {
+            sum += (data[i] << 8); // Pad with zero if odd length
+        }
+    }
+
+    // Fold 32-bit sum to 16 bits
+    while (sum >> 16) {
+        sum = (sum & 0xFFFF) + (sum >> 16);
+    }
+    return (uint16_t)~sum; // One's complement
 }
 
 void udp_init(void) {

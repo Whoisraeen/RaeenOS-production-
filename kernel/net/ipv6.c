@@ -29,13 +29,32 @@ void ipv6_register_receive_callback(uint8_t next_header, ipv6_receive_callback_t
 void ipv6_handle_ethernet_packet(const uint8_t* packet, uint32_t size) {
     debug_print("IPv6: Received packet (simulated).\n");
     // Simulate parsing IPv6 header
-    uint8_t next_header = packet[6]; // Placeholder
-    ipv6_addr_t src_ip; // Placeholder
-    ipv6_addr_t dest_ip; // Placeholder
+    uint8_t version_traffic_flow = packet[0];
+    uint8_t version = (version_traffic_flow >> 4) & 0x0F;
+    if (version != 6) {
+        debug_print("IPv6: Received non-IPv6 packet.\n");
+        return;
+    }
+
+    uint8_t next_header = packet[6];
+    uint16_t payload_length = (packet[4] << 8) | packet[5];
+
+    ipv6_addr_t src_ip; 
+    memcpy(src_ip.addr, packet + 8, 16);
+    ipv6_addr_t dest_ip; 
+    memcpy(dest_ip.addr, packet + 24, 16);
+
     const uint8_t* ipv6_data = packet + 40; // IPv6 header is 40 bytes
     uint32_t ipv6_data_size = size - 40;
+
+    debug_print("IPv6: Received packet (Next Header: ");
+    vga_put_hex(next_header);
+    debug_print(", Payload Length: ");
+    vga_put_dec(payload_length);
+    debug_print(")\n");
 
     if (next_header < 256 && ipv6_callbacks[next_header]) {
         ipv6_callbacks[next_header](src_ip, next_header, ipv6_data, ipv6_data_size);
     }
 }
+

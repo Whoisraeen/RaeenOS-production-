@@ -120,6 +120,43 @@ void wm_resize_window(window_t* window, uint32_t new_width, uint32_t new_height)
     wm_redraw_windows();
 }
 
+void wm_minimize_window(window_t* window) {
+    if (!window) return;
+    debug_print("WM: Minimizing window ");
+    debug_print(window->title);
+    debug_print("\n");
+    window->minimized = true;
+    wm_redraw_windows();
+}
+
+void wm_maximize_window(window_t* window) {
+    if (!window) return;
+    debug_print("WM: Maximizing window ");
+    debug_print(window->title);
+    debug_print("\n");
+    // TODO: Set window to screen size
+    wm_redraw_windows();
+}
+
+void wm_restore_window(window_t* window) {
+    if (!window) return;
+    debug_print("WM: Restoring window ");
+    debug_print(window->title);
+    debug_print("\n");
+    window->minimized = false;
+    window->maximized = false;
+    // TODO: Restore original size/position
+    wm_redraw_windows();
+}
+
+void wm_close_window(window_t* window) {
+    if (!window) return;
+    debug_print("WM: Closing window ");
+    debug_print(window->title);
+    debug_print("\n");
+    wm_destroy_window(window);
+}
+
 void wm_focus_window(window_t* window) {
     if (focused_window) {
         focused_window->focused = false;

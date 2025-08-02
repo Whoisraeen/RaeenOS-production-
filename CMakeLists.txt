@@ -58,8 +58,12 @@ set(SOURCES ${KERNEL_SOURCES} ${SECURITY_SOURCES}
     userland/desktop/file_explorer.c
     kernel/graphics/3d_pipeline.c
     kernel/vm/device_emulation.c
+    kernel/vm/cpu_virtualization.c
+    kernel/vm/memory_virtualization.c
     kernel/ai/ai_engine.c
+    kernel/ai/nlp.c
     userland/app_store/app_distribution.c
+    userland/app_store/app_security.c
 )
 
 add_executable(raeenos.elf ${SOURCES})

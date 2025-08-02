@@ -6,6 +6,8 @@
 
 #define TCP_MAX_CONNECTIONS 16
 #define TCP_RECEIVE_BUFFER_SIZE 2048
+#define TCP_SEND_BUFFER_SIZE 2048
+#define TCP_RETRANSMISSION_TIMEOUT_MS 5000 // 5 seconds
 
 static tcp_connection_t* tcp_connections[TCP_MAX_CONNECTIONS];
 static uint32_t next_tcp_port = 49152; // Ephemeral port range
@@ -46,6 +48,16 @@ tcp_connection_t* tcp_connect(ipv4_addr_t remote_ip, uint16_t remote_port, uint1
     }
     conn->receive_buffer_head = 0;
     conn->receive_buffer_tail = 0;
+
+    conn->send_buffer = (uint8_t*)kmalloc(TCP_SEND_BUFFER_SIZE);
+    if (!conn->send_buffer) {
+        kfree(conn->receive_buffer);
+        kfree(conn);
+        return NULL;
+    }
+    conn->send_buffer_head = 0;
+    conn->send_buffer_tail = 0;
+    conn->retransmission_timer = 0;
 
     // Add to connection list
     for (int i = 0; i < TCP_MAX_CONNECTIONS; i++) {
@@ -89,6 +101,16 @@ tcp_connection_t* tcp_listen(uint16_t port) {
     conn->receive_buffer_head = 0;
     conn->receive_buffer_tail = 0;
 
+    conn->send_buffer = (uint8_t*)kmalloc(TCP_SEND_BUFFER_SIZE);
+    if (!conn->send_buffer) {
+        kfree(conn->receive_buffer);
+        kfree(conn);
+        return NULL;
+    }
+    conn->send_buffer_head = 0;
+    conn->send_buffer_tail = 0;
+    conn->retransmission_timer = 0;
+
     // Add to connection list
     for (int i = 0; i < TCP_MAX_CONNECTIONS; i++) {
         if (tcp_connections[i] == NULL) {
@@ -109,9 +131,17 @@ int tcp_send(tcp_connection_t* conn, const uint8_t* data, uint32_t size) {
     debug_print(":");
     vga_put_dec(conn->remote_port);
     debug_print(" (simulated).\n");
-    // In a real implementation, this would segment data, add TCP header, and pass to IP layer.
-    conn->sequence_number += size; // Update sequence number
-    return size;
+
+    // Copy data to send buffer (simulated flow control)
+    uint32_t bytes_to_copy = (size < TCP_SEND_BUFFER_SIZE - conn->send_buffer_tail) ? size : (TCP_SEND_BUFFER_SIZE - conn->send_buffer_tail);
+    memcpy(conn->send_buffer + conn->send_buffer_tail, data, bytes_to_copy);
+    conn->send_buffer_tail += bytes_to_copy;
+
+    // Simulate sending segment and starting retransmission timer
+    conn->sequence_number += bytes_to_copy; // Update sequence number
+    conn->retransmission_timer = TCP_RETRANSMISSION_TIMEOUT_MS; // Start timer
+
+    return bytes_to_copy;
 }
 
 int tcp_receive(tcp_connection_t* conn, uint8_t* buffer, uint32_t buffer_size) {
@@ -148,6 +178,9 @@ int tcp_close(tcp_connection_t* conn) {
     conn->state = TCP_STATE_CLOSED;
     if (conn->receive_buffer) {
         kfree(conn->receive_buffer);
+    }
+    if (conn->send_buffer) {
+        kfree(conn->send_buffer);
     }
     // Remove from connection list
     for (int i = 0; i < TCP_MAX_CONNECTIONS; i++) {
@@ -231,13 +264,6 @@ void tcp_handle_ipv4_packet(ipv4_addr_t src_ip, uint8_t protocol, const uint8_t*
                     debug_print("TCP: Data received, ACK sent (simulated).\n");
                     // In a real implementation, send ACK.
                 }
-            }
-        } else if (flags & 0x01) { // FIN flag
-            if (conn->state == TCP_STATE_ESTABLISHED) {
-                conn->acknowledge_number = sequence_number + 1;
-                conn->state = TCP_STATE_CLOSE_WAIT; // Simulate CLOSE_WAIT
-                debug_print("TCP: FIN received, sending ACK (simulated).\n");
-                // In a real implementation, send ACK and then FIN.
             }
         }
     } else {

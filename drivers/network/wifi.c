@@ -29,4 +29,3 @@ int wifi_disconnect(void) {
     debug_print("Wi-Fi: Disconnecting (simulated).\n");
     return 0; // Success
 }
-

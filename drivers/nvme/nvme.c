@@ -31,3 +31,17 @@ int nvme_write_sectors(uint8_t drive, uint64_t lba, uint32_t num_sectors, const 
     debug_print("NVMe: Writing sectors (simulated).\n");
     return 0; // Success
 }
+
+int nvme_submit_command(uint8_t drive, const nvme_command_t* cmd) {
+    (void)drive;
+    (void)cmd;
+    debug_print("NVMe: Submitting command (simulated).\n");
+    return 0; // Success
+}
+
+int nvme_poll_completion(uint8_t drive, nvme_completion_t* completion) {
+    (void)drive;
+    (void)completion;
+    debug_print("NVMe: Polling for completion (simulated).\n");
+    return 0; // No completion for now
+}

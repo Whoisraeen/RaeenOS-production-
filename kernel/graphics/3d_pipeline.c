@@ -2,7 +2,6 @@
 #include "../vga.h"
 #include "../memory.h"
 #include "../libs/libc/include/string.h"
-#include "../libs/libc/include/string.h"
 
 void graphics_3d_init(void) {
     debug_print("3D Graphics Pipeline initialized (placeholder).\n");
@@ -60,4 +59,3 @@ void graphics_3d_present(void) {
     debug_print("3D Graphics: Presenting frame (simulated).\n");
     // In a real implementation, this would swap buffers or present the rendered frame.
 }
-
