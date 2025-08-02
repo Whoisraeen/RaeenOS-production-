@@ -1,6 +1,6 @@
 #include "shared_memory.h"
 #include "../memory.h"
-#include "../string.h"
+#include "../libs/libc/include/string.h"
 #include "../vga.h"
 #include "../pmm.h"
 #include "../paging.h"

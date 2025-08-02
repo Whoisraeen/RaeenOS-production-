@@ -27,7 +27,14 @@ typedef struct {
     uint32_t remote_ip;
     uint16_t remote_port;
     tcp_state_t state;
-    // Add sequence numbers, window sizes, buffers, etc.
+    uint32_t sequence_number; // Our next sequence number
+    uint32_t acknowledge_number; // Next sequence number we expect from remote
+    uint16_t window_size; // Our receive window size
+    uint8_t* receive_buffer; // Buffer for incoming data
+    uint32_t receive_buffer_size;
+    uint32_t receive_buffer_head;
+    uint32_t receive_buffer_tail;
+    // Add more for retransmission, flow control, congestion control
 } tcp_connection_t;
 
 // Initialize the TCP stack
@@ -47,5 +54,8 @@ int tcp_receive(tcp_connection_t* conn, uint8_t* buffer, uint32_t buffer_size);
 
 // Close a TCP connection
 int tcp_close(tcp_connection_t* conn);
+
+// Handle incoming TCP segment from IP layer
+void tcp_handle_ipv4_packet(ipv4_addr_t src_ip, uint8_t protocol, const uint8_t* data, uint32_t size);
 
 #endif // TCP_H

@@ -1,6 +1,8 @@
 #include "hypervisor.h"
 #include "../vga.h"
 #include "../memory.h"
+#include "../libs/libc/include/string.h"
+#include "../libs/libc/include/string.h"
 
 // Placeholder VM context structure
 typedef struct vm_context {

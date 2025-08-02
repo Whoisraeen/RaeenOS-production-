@@ -1,7 +1,7 @@
 #include "ethernet.h"
 #include "../../kernel/vga.h"
 #include "../../kernel/include/driver.h"
-#include "../../kernel/string.h"
+#include "../../libs/libc/include/string.h"
 
 // Placeholder MAC address
 static uint8_t current_mac_address[6] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55};

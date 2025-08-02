@@ -1,7 +1,7 @@
 #include "ipv4.h"
 #include "../../drivers/network/ethernet.h"
 #include "../vga.h"
-#include "../string.h"
+#include "../libs/libc/include/string.h"
 
 // Placeholder for IPv4 receive callbacks
 static ipv4_receive_callback_t ipv4_callbacks[256]; // Indexed by protocol number

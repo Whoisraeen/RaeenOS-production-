@@ -1,6 +1,6 @@
 #include "arp.h"
 #include "../vga.h"
-#include "../string.h"
+#include "../libs/libc/include/string.h"
 #include "../../drivers/network/ethernet.h"
 
 // Placeholder ARP cache

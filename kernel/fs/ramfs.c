@@ -1,6 +1,6 @@
 #include "ramfs.h"
 #include "../memory.h"
-#include "../string.h"
+#include "../libs/libc/include/string.h"
 #include "../vga.h"
 
 // Simple RAMFS node structure

@@ -4,6 +4,7 @@
 #include "pmm.h"
 #include "paging.h"
 #include "sync.h" // For spinlock
+#include "../libs/libc/include/string.h" // For memset
 #include "../vga.h"
 
 // A block of memory in the heap

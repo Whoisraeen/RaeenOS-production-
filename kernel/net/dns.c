@@ -1,7 +1,7 @@
 #include "dns.h"
 #include "udp.h"
 #include "../vga.h"
-#include "../string.h"
+#include "../libs/libc/include/string.h"
 
 static ipv4_addr_t dns_server_ip = 0; // Default to 0, set by DHCP or manually
 

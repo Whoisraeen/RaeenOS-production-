@@ -5,7 +5,7 @@
 #include "../pmm.h"
 #include "../paging.h"
 #include "../memory.h"     // For kmalloc/kfree
-#include "../string.h"    // For memset and string functions
+#include "../libs/libc/include/string.h"    // For memset and string functions
 #include "../sync.h"      // For spinlock
 
 // The process table

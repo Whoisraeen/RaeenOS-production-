@@ -3,7 +3,7 @@
 #include "../../kernel/vga.h"
 #include "../../kernel/graphics.h"
 #include "../../kernel/memory.h"
-#include "../../kernel/string.h"
+#include "../../libs/libc/include/string.h"
 
 #define MAX_WINDOWS 32
 
@@ -11,6 +11,19 @@ static window_t* windows[MAX_WINDOWS];
 static uint32_t num_windows = 0;
 static uint32_t next_window_id = 0;
 static window_t* focused_window = NULL;
+
+// Function to sort windows by Z-order (simple bubble sort for now)
+static void sort_windows_by_z_order() {
+    for (uint32_t i = 0; i < num_windows; i++) {
+        for (uint32_t j = i + 1; j < num_windows; j++) {
+            if (windows[i]->z_order > windows[j]->z_order) {
+                window_t* temp = windows[i];
+                windows[i] = windows[j];
+                windows[j] = temp;
+            }
+        }
+    }
+}
 
 void wm_init(void) {
     debug_print("Window Manager initialized (placeholder).\n");
@@ -39,6 +52,7 @@ window_t* wm_create_window(const char* title, uint32_t x, uint32_t y, uint32_t w
     win->focused = false;
     win->minimized = false;
     win->maximized = false;
+    win->z_order = num_windows; // Assign initial Z-order
 
     windows[num_windows++] = win;
     debug_print("WM: Created window ");
@@ -113,6 +127,15 @@ void wm_focus_window(window_t* window) {
     focused_window = window;
     if (focused_window) {
         focused_window->focused = true;
+        // Bring to front (highest Z-order)
+        for (uint32_t i = 0; i < num_windows; i++) {
+            if (windows[i] == focused_window) {
+                windows[i]->z_order = num_windows; // Highest Z-order
+            } else {
+                windows[i]->z_order--; // Decrease others' Z-order
+            }
+        }
+        sort_windows_by_z_order();
         debug_print("WM: Focused window ");
         debug_print(focused_window->title);
         debug_print("\n");
@@ -124,7 +147,7 @@ void wm_redraw_windows(void) {
     // Clear screen first
     graphics_clear_screen(0x000000); // Black background
 
-    // Redraw all windows
+    // Redraw all windows in Z-order
     for (uint32_t i = 0; i < num_windows; i++) {
         window_t* win = windows[i];
         if (win && !win->minimized) {
@@ -136,4 +159,45 @@ void wm_redraw_windows(void) {
         }
     }
     graphics_swap_buffers();
+}
+
+void wm_handle_mouse_click(uint32_t x, uint32_t y, uint8_t button) {
+    debug_print("WM: Mouse click at (");
+    vga_put_dec(x);
+    debug_print(", ");
+    vga_put_dec(y);
+    debug_print(") button: ");
+    vga_put_dec(button);
+    debug_print("\n");
+
+    // Find window clicked on (iterate in reverse Z-order)
+    window_t* clicked_window = NULL;
+    for (int i = num_windows - 1; i >= 0; i--) {
+        window_t* win = windows[i];
+        if (win && x >= win->x && x < win->x + win->width &&
+            y >= win->y && y < win->y + win->height) {
+            clicked_window = win;
+            break;
+        }
+    }
+
+    if (clicked_window) {
+        wm_focus_window(clicked_window);
+        // TODO: Implement drag/resize logic based on click location (title bar, borders)
+    }
+}
+
+void wm_handle_keyboard_event(uint8_t scancode, bool pressed) {
+    debug_print("WM: Keyboard event scancode ");
+    vga_put_hex(scancode);
+    debug_print(" pressed: ");
+    vga_put_dec(pressed);
+    debug_print("\n");
+
+    if (focused_window) {
+        // TODO: Pass keyboard events to focused window for application handling
+        debug_print("WM: Passing key to focused window ");
+        debug_print(focused_window->title);
+        debug_print("\n");
+    }
 }

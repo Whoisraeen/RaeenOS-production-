@@ -13,7 +13,8 @@ typedef struct window {
     bool focused;
     bool minimized;
     bool maximized;
-    // Add more window properties (e.g., Z-order, parent/child relationships)
+    uint32_t z_order; // Z-ordering for drawing
+    // Add more window properties (e.g., parent/child relationships)
 } window_t;
 
 // Initialize the window manager
@@ -36,5 +37,11 @@ void wm_focus_window(window_t* window);
 
 // Redraw all windows
 void wm_redraw_windows(void);
+
+// Handle mouse click event
+void wm_handle_mouse_click(uint32_t x, uint32_t y, uint8_t button);
+
+// Handle keyboard event
+void wm_handle_keyboard_event(uint8_t scancode, bool pressed);
 
 #endif // WINDOW_MANAGER_H

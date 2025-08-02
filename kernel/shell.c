@@ -1,7 +1,7 @@
 #include "shell.h"
 #include "vga.h"
 #include "keyboard.h"
-#include "string.h"
+#include "../libs/libc/include/string.h"
 #include "memory.h"
 #include "process/process.h"
 

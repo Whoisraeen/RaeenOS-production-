@@ -3,7 +3,7 @@
 #include "graphics.h"
 #include "font.h"
 #include "memory.h" // For kmalloc
-#include "string.h" // For memcpy
+#include "../libs/libc/include/string.h" // For memcpy
 #include "include/multiboot.h" // Include multiboot header
 // Using types.h instead of stddef.h for kernel build
 

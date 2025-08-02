@@ -2,7 +2,7 @@
 #include "../pci/pci.h"
 #include "../../kernel/vga.h"
 #include "../../kernel/memory.h"
-#include "../../kernel/string.h"
+#include "../../libs/libc/include/string.h"
 #include "../../kernel/include/driver.h"
 
 // NOTE: This is a generic, software-rendered GPU driver. 

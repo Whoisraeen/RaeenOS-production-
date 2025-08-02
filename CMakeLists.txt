@@ -32,6 +32,7 @@ set(SOURCES ${KERNEL_SOURCES} ${SECURITY_SOURCES}
     userland/app_store.c
     libs/libc/stdio.c
     libs/libc/stdlib.c
+    libs/libc/string.c
     kernel/vm/hypervisor.c
     userland/desktop/desktop.c
     kernel/swap/swap_manager.c
@@ -44,10 +45,21 @@ set(SOURCES ${KERNEL_SOURCES} ${SECURITY_SOURCES}
     kernel/net/icmp.c
     kernel/net/dhcp.c
     kernel/net/dns.c
+    kernel/net/ipv6.c
+    drivers/network/wifi.c
+    drivers/network/bluetooth.c
     kernel/fs/raeenfs.c
     drivers/ata/ata.c
     kernel/fs/fat32.c
+    drivers/nvme/nvme.c
     userland/desktop/window_manager.c
+    userland/desktop/taskbar.c
+    userland/desktop/start_menu.c
+    userland/desktop/file_explorer.c
+    kernel/graphics/3d_pipeline.c
+    kernel/vm/device_emulation.c
+    kernel/ai/ai_engine.c
+    userland/app_store/app_distribution.c
 )
 
 add_executable(raeenos.elf ${SOURCES})
@@ -58,6 +70,9 @@ target_include_directories(raeenos.elf PRIVATE ${CMAKE_SOURCE_DIR}/security)
 # Add libc include directory
 target_include_directories(raeenos.elf PRIVATE ${CMAKE_SOURCE_DIR}/libs/libc/include)
 
+# Add RaeenUI as a subdirectory
+add_subdirectory(ui)
+
 # Build RaeShell
 add_executable(raeshell userland/raeshell/raeshell.c)
 set_target_properties(raeshell PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/userland")
@@ -67,7 +82,8 @@ set_target_properties(raeenos.elf PROPERTIES
 )
 
 link_directories(${CMAKE_SOURCE_DIR}/security)
-target_link_libraries(raeenos.elf security)
+link_directories(${CMAKE_SOURCE_DIR}/ui)
+target_link_libraries(raeenos.elf security raeenui)
 
 add_custom_command(
     TARGET raeenos.elf

@@ -1,7 +1,7 @@
 #include "ata.h"
 #include "../../kernel/vga.h"
 #include "../../kernel/ports.h"
-#include "../../kernel/string.h"
+#include "../../libs/libc/include/string.h"
 #include "../../kernel/include/driver.h"
 
 // ATA I/O Ports

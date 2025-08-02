@@ -1,6 +1,8 @@
 // VGA text mode implementation for RaeenOS
 
 #include "vga.h"
+#include "../libs/libc/include/stdio.h" // Use libc printf
+#include "../libs/libc/include/string.h" // Use libc string functions
 
 #define VGA_MEMORY 0xB8000
 #define VGA_WIDTH 80
@@ -89,31 +91,14 @@ void vga_puts(const char* str) {
 
 void vga_put_hex(uint32_t n) {
     char buf[9];
-    const char* hex_chars = "0123456789ABCDEF";
-    buf[8] = '\0';
-    for (int i = 7; i >= 0; i--) {
-        buf[i] = hex_chars[n & 0xF];
-        n >>= 4;
-    }
+    sprintf(buf, "%X", n);
     vga_puts(buf);
 }
 
 void vga_put_dec(uint32_t n) {
-    if (n == 0) {
-        vga_putc('0');
-        return;
-    }
-
-    char buf[10]; // Max 10 digits for 32-bit unsigned int
-    int i = 0;
-    while (n > 0) {
-        buf[i++] = (n % 10) + '0';
-        n /= 10;
-    }
-
-    while (i-- > 0) {
-        vga_putc(buf[i]);
-    }
+    char buf[11]; // Max 10 digits for 32-bit unsigned int + null terminator
+    sprintf(buf, "%u", n);
+    vga_puts(buf);
 }
 
 void debug_print(const char* str) {

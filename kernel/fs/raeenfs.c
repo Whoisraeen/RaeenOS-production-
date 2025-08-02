@@ -1,7 +1,7 @@
 #include "raeenfs.h"
 #include "../vga.h"
 #include "../memory.h"
-#include "../string.h"
+#include "../libs/libc/include/string.h"
 
 void raeenfs_init(void) {
     debug_print("RaeenFS initialized (placeholder).\n");

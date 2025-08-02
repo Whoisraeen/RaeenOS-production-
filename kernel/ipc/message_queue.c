@@ -1,6 +1,6 @@
 #include "message_queue.h"
 #include "../memory.h"
-#include "../string.h"
+#include "../libs/libc/include/string.h"
 #include "../vga.h"
 
 static uint32_t next_msg_queue_id = 0;

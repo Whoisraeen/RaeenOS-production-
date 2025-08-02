@@ -1,7 +1,7 @@
 #include "app_store.h"
 #include "../kernel/vga.h"
 #include "../kernel/memory.h"
-#include "../kernel/string.h"
+#include "../libs/libc/include/string.h"
 
 // Placeholder for a list of available applications
 static app_metadata_t available_apps[] = {
