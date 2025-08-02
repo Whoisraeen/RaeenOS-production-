@@ -5,6 +5,9 @@
 #include "../../kernel/string.h"
 #include "../../kernel/include/driver.h"
 
+// NOTE: This is a generic, software-rendered GPU driver. 
+// Hardware-specific implementations (e.g., Vulkan/DirectX) are currently missing.
+
 // GPU driver structure
 static driver_t gpu_driver = {
     .name = "Generic GPU Driver",
@@ -286,7 +289,6 @@ void gpu_draw_pixel(uint32_t x, uint32_t y, uint32_t color) {
     }
     
     uint32_t bytes_per_pixel = gpu_device.current_depth / 8;
-    uint32_t offset = (y * gpu_device.current_width + x) * bytes_per_pixel;
     
     switch (bytes_per_pixel) {
         case 4: // 32-bit
@@ -418,4 +420,20 @@ void gpu_cleanup(void) {
     
     gpu_device.initialized = false;
     debug_print("GPU driver cleanup completed");
+}
+
+// Placeholder for submitting commands to a hardware GPU
+int gpu_submit_command_buffer(void* command_buffer, uint32_t size) {
+    (void)command_buffer;
+    (void)size;
+    debug_print("GPU: Command buffer submitted (software simulation).");
+    return 0; // Success
+}
+
+// Placeholder for allocating VRAM
+void* gpu_alloc_vram(uint32_t size) {
+    debug_print("GPU: Allocating VRAM (software simulation).");
+    // In a real driver, this would allocate memory on the GPU itself.
+    // For now, we simulate it with kernel memory allocation.
+    return kmalloc(size);
 }

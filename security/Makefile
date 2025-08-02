@@ -10,7 +10,10 @@ SECURITY_SOURCES = \
 	crypto.c \
 	audit.c \
 	ids.c \
-	network_security.c
+	network_security.c \
+	raesec.c \
+	policy_engine.c \
+	access_control.c
 
 # Security framework object files
 SECURITY_OBJECTS = $(SECURITY_SOURCES:.c=.o)

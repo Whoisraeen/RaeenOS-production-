@@ -72,10 +72,50 @@ void graphics_put_pixel(uint32_t x, uint32_t y, uint32_t color) {
  * @brief Draws a rectangle on the back buffer.
  */
 void graphics_draw_rect(uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t color) {
-    for (uint32_t i = y; i < y + height; i++) {
-        for (uint32_t j = x; j < x + width; j++) {
-            graphics_put_pixel(j, i, color);
+    if (back_buffer_addr == NULL || x >= screen_width || y >= screen_height) return;
+
+    // Clamp dimensions to screen boundaries
+    uint32_t clamped_width = (x + width > screen_width) ? (screen_width - x) : width;
+    uint32_t clamped_height = (y + height > screen_height) ? (screen_height - y) : height;
+
+    if (clamped_width == 0 || clamped_height == 0) return;
+
+    // Optimize for solid rectangles using memcpy
+    if (screen_bpp == 32) { // Only for 32-bit color depth
+        uint32_t row_size_bytes = clamped_width * sizeof(uint32_t);
+        for (uint32_t i = 0; i < clamped_height; i++) {
+            uint32_t* row_start = back_buffer_addr + (y + i) * (screen_pitch / 4) + x;
+            for (uint32_t j = 0; j < clamped_width; j++) {
+                row_start[j] = color;
+            }
         }
+    } else {
+        // Fallback to pixel-by-pixel for other color depths or if not 32-bit
+        for (uint32_t i = 0; i < clamped_height; i++) {
+            for (uint32_t j = 0; j < clamped_width; j++) {
+                graphics_put_pixel(x + j, y + i, color);
+            }
+        }
+    }
+}
+
+/**
+ * @brief Draws a line on the back buffer using Bresenham's line algorithm.
+ */
+void graphics_draw_line(uint33_t x0, uint33_t y0, uint33_t x1, uint33_t y1, uint32_t color) {
+    int dx = abs((int)x1 - (int)x0);
+    int sx = x0 < x1 ? 1 : -1;
+    int dy = abs((int)y1 - (int)y0);
+    int sy = y0 < y1 ? 1 : -1;
+    int err = (dx > dy ? dx : -dy) / 2;
+    int e2;
+
+    for (;;) {
+        graphics_put_pixel(x0, y0, color);
+        if (x0 == x1 && y0 == y1) break;
+        e2 = err;
+        if (e2 > -dx) { err -= dy; x0 += sx; }
+        if (e2 < dy) { err += dx; y0 += sy; }
     }
 }
 
@@ -83,10 +123,11 @@ void graphics_draw_rect(uint32_t x, uint32_t y, uint32_t width, uint32_t height,
  * @brief Clears the entire screen (back buffer) with a given color.
  */
 void graphics_clear_screen(uint32_t color) {
-    for (uint32_t y = 0; y < screen_height; y++) {
-        for (uint32_t x = 0; x < screen_width; x++) {
-            graphics_put_pixel(x, y, color);
-        }
+    if (back_buffer_addr == NULL) return;
+
+    uint32_t total_pixels = screen_width * screen_height;
+    for (uint32_t i = 0; i < total_pixels; i++) {
+        back_buffer_addr[i] = color;
     }
 }
 

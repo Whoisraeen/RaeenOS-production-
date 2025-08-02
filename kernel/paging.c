@@ -54,6 +54,46 @@ void vmm_map_page(pml4_t* pml4, uintptr_t vaddr, uintptr_t paddr, uint64_t flags
     pt->entries[pt_index] = paddr | flags;
 }
 
+void vmm_unmap_page(pml4_t* pml4, uintptr_t vaddr) {
+    uint64_t pml4_index = PML4_INDEX(vaddr);
+    uint64_t pdpt_index = PDPT_INDEX(vaddr);
+    uint64_t pd_index = PD_INDEX(vaddr);
+    uint64_t pt_index = PT_INDEX(vaddr);
+
+    if (!(pml4->entries[pml4_index] & PTE_PRESENT)) return;
+    pdpt_t* pdpt = (pdpt_t*)(pml4->entries[pml4_index] & ~0xFFF);
+
+    if (!(pdpt->entries[pdpt_index] & PTE_PRESENT)) return;
+    pd_t* pd = (pd_t*)(pdpt->entries[pdpt_index] & ~0xFFF);
+
+    if (!(pd->entries[pd_index] & PTE_PRESENT)) return;
+    pt_t* pt = (pt_t*)(pd->entries[pd_index] & ~0xFFF);
+
+    pt->entries[pt_index] = 0; // Clear the entry
+
+    // Invalidate TLB for the unmapped page
+    asm volatile("invlpg (%0)" : : "r"(vaddr) : "memory");
+}
+
+uintptr_t vmm_get_physical_address(pml4_t* pml4, uintptr_t vaddr) {
+    uint64_t pml4_index = PML4_INDEX(vaddr);
+    uint64_t pdpt_index = PDPT_INDEX(vaddr);
+    uint64_t pd_index = PD_INDEX(vaddr);
+    uint64_t pt_index = PT_INDEX(vaddr);
+
+    if (!(pml4->entries[pml4_index] & PTE_PRESENT)) return 0;
+    pdpt_t* pdpt = (pdpt_t*)(pml4->entries[pml4_index] & ~0xFFF);
+
+    if (!(pdpt->entries[pdpt_index] & PTE_PRESENT)) return 0;
+    pd_t* pd = (pd_t*)(pdpt->entries[pdpt_index] & ~0xFFF);
+
+    if (!(pd->entries[pd_index] & PTE_PRESENT)) return 0;
+    pt_t* pt = (pt_t*)(pd->entries[pd_index] & ~0xFFF);
+
+    uintptr_t page_frame = pt->entries[pt_index] & ~0xFFF; // Mask out flags
+    return page_frame + (vaddr % PAGE_SIZE);
+}
+
 pml4_t* vmm_create_address_space() {
     pml4_t* pml4 = pmm_alloc_frame();
     memset(pml4, 0, PAGE_SIZE);
@@ -62,4 +102,42 @@ pml4_t* vmm_create_address_space() {
 
 void vmm_switch_address_space(pml4_t* pml4) {
     asm volatile("mov %0, %%cr3" : : "r"(pml4));
+}
+
+void vmm_set_page_executable(pml4_t* pml4, uintptr_t vaddr) {
+    uint64_t pml4_index = PML4_INDEX(vaddr);
+    uint64_t pdpt_index = PDPT_INDEX(vaddr);
+    uint64_t pd_index = PD_INDEX(vaddr);
+    uint64_t pt_index = PT_INDEX(vaddr);
+
+    if (!(pml4->entries[pml4_index] & PTE_PRESENT)) return;
+    pdpt_t* pdpt = (pdpt_t*)(pml4->entries[pml4_index] & ~0xFFF);
+
+    if (!(pdpt->entries[pdpt_index] & PTE_PRESENT)) return;
+    pd_t* pd = (pd_t*)(pdpt->entries[pdpt_index] & ~0xFFF);
+
+    if (!(pd->entries[pd_index] & PTE_PRESENT)) return;
+    pt_t* pt = (pt_t*)(pd->entries[pd_index] & ~0xFFF);
+
+    pt->entries[pt_index] &= ~PTE_NO_EXECUTE; // Clear NX bit
+    asm volatile("invlpg (%0)" : : "r"(vaddr) : "memory"); // Invalidate TLB
+}
+
+void vmm_set_page_non_executable(pml4_t* pml4, uintptr_t vaddr) {
+    uint64_t pml4_index = PML4_INDEX(vaddr);
+    uint64_t pdpt_index = PDPT_INDEX(vaddr);
+    uint64_t pd_index = PD_INDEX(vaddr);
+    uint64_t pt_index = PT_INDEX(vaddr);
+
+    if (!(pml4->entries[pml4_index] & PTE_PRESENT)) return;
+    pdpt_t* pdpt = (pdpt_t*)(pml4->entries[pml4_index] & ~0xFFF);
+
+    if (!(pdpt->entries[pdpt_index] & PTE_PRESENT)) return;
+    pd_t* pd = (pd_t*)(pdpt->entries[pdpt_index] & ~0xFFF);
+
+    if (!(pd->entries[pd_index] & PTE_PRESENT)) return;
+    pt_t* pt = (pt_t*)(pd->entries[pd_index] & ~0xFFF);
+
+    pt->entries[pt_index] |= PTE_NO_EXECUTE; // Set NX bit
+    asm volatile("invlpg (%0)" : : "r"(vaddr) : "memory"); // Invalidate TLB
 }

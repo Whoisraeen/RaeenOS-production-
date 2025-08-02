@@ -4,14 +4,10 @@
  */
 
 #include "raesec.h"
-#include "security_core.h"
 #include "../kernel/process_advanced.h"
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <fnmatch.h>
-#include <time.h>
-#include <json-c/json.h>
+#include "../memory.h"
+#include "../string.h"
+#include "../time.h"
 
 // Policy evaluation cache
 typedef struct {

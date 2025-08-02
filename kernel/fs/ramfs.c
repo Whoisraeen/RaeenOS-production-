@@ -1,161 +1,178 @@
-// RaeenOS In-Memory Filesystem (RamFS) Implementation
-
 #include "ramfs.h"
+#include "../memory.h"
 #include "../string.h"
+#include "../vga.h"
 
-// Using types.h for kernel build
-#include "../pmm.h"
-#include "../ipc/pipe.h"
+// Simple RAMFS node structure
+typedef struct ramfs_node {
+    vfs_node_t vfs_node; // Inherit from VFS node
+    uint8_t* data;
+    size_t size;
+    size_t capacity;
+    struct ramfs_node* children;
+    struct ramfs_node* next_sibling;
+} ramfs_node_t;
 
-#define MAX_RAMFS_NODES 256
-#define MAX_DIR_ENTRIES 16
+static ramfs_node_t* ramfs_root = NULL;
 
-typedef struct {
-    union {
-        vfs_node_t* children[MAX_DIR_ENTRIES];
-        uint8_t* file_data;
-    };
-} ramfs_data_t;
-
-static vfs_node_t ramfs_nodes[MAX_RAMFS_NODES];
-static ramfs_data_t ramfs_node_data[MAX_RAMFS_NODES];
-static struct dirent ramfs_dirent_buffer; // A single, reusable buffer for readdir
-static uint32_t next_node_index = 0;
-
-// Forward declarations for our static VFS functions
-static uint32_t ramfs_read(vfs_node_t* node, uint32_t offset, uint32_t size, uint8_t* buffer);
-static uint32_t ramfs_write(vfs_node_t* node, uint32_t offset, uint32_t size, uint8_t* buffer);
-static struct dirent* ramfs_readdir(vfs_node_t* node, uint32_t index);
+// VFS operations for RAMFS
+static ssize_t ramfs_read(vfs_node_t* node, void* buffer, size_t size, off_t offset);
+static ssize_t ramfs_write(vfs_node_t* node, const void* buffer, size_t size, off_t offset);
 static vfs_node_t* ramfs_finddir(vfs_node_t* node, const char* name);
 static vfs_node_t* ramfs_create(vfs_node_t* parent, const char* name, uint32_t flags);
-static vfs_node_t* ramfs_alloc_node(const char* name, uint32_t flags);
+static int ramfs_mkdir(vfs_node_t* parent, const char* name, uint32_t flags);
 
-vfs_node_t* ramfs_init() {
-    vfs_node_t* root = ramfs_alloc_node("/", VFS_DIRECTORY);
-    return root;
-}
+void ramfs_init(void) {
+    debug_print("Initializing RAMFS...\n");
 
-static vfs_node_t* ramfs_alloc_node(const char* name, uint32_t flags) {
-    if (next_node_index >= MAX_RAMFS_NODES) return NULL;
-
-    uint32_t i = next_node_index++;
-    vfs_node_t* node = &ramfs_nodes[i];
-    ramfs_data_t* data = &ramfs_node_data[i];
-
-    strcpy(node->name, name);
-    node->inode = i;
-    node->flags = flags;
-    node->length = 0;
-        node->mounted_at = NULL;
-    node->pipe = NULL;
-    node->open = NULL; 
-    node->close = NULL;
-
-    if (flags & VFS_DIRECTORY) {
-        node->read = NULL;
-        node->write = NULL;
-        node->readdir = ramfs_readdir;
-        node->finddir = ramfs_finddir;
-        node->create = ramfs_create;
-        for (int j = 0; j < MAX_DIR_ENTRIES; j++) data->children[j] = NULL;
-    } else {
-        node->read = ramfs_read;
-        node->write = ramfs_write;
-        node->readdir = NULL;
-        node->finddir = NULL;
-        node->create = NULL;
-        data->file_data = NULL;
+    ramfs_root = (ramfs_node_t*)kmalloc(sizeof(ramfs_node_t));
+    if (!ramfs_root) {
+        debug_print("RAMFS: Failed to allocate root node!\n");
+        return;
     }
-    return node;
+
+    memset(ramfs_root, 0, sizeof(ramfs_node_t));
+    strncpy(ramfs_root->vfs_node.name, "/", sizeof(ramfs_root->vfs_node.name) - 1);
+    ramfs_root->vfs_node.flags = VFS_DIRECTORY;
+    ramfs_root->vfs_node.mask = 0777; // rwxrwxrwx
+    ramfs_root->vfs_node.inode = 0;
+    ramfs_root->vfs_node.length = 0;
+    ramfs_root->vfs_node.impl = ramfs_root; // Point back to itself
+
+    // Assign VFS operations
+    ramfs_root->vfs_node.read = ramfs_read;
+    ramfs_root->vfs_node.write = ramfs_write;
+    ramfs_root->vfs_node.finddir = ramfs_finddir;
+    ramfs_root->vfs_node.create = ramfs_create;
+    ramfs_root->vfs_node.mkdir = ramfs_mkdir;
+
+    debug_print("RAMFS initialized. Root node created.\n");
 }
 
-static uint32_t ramfs_read(vfs_node_t* node, uint32_t offset, uint32_t size, uint8_t* buffer) {
-    if (node->flags & VFS_DIRECTORY) return 0;
-    ramfs_data_t* data = &ramfs_node_data[node->inode];
-    if (!data->file_data || offset > node->length) return 0;
-    if (offset + size > node->length) size = node->length - offset;
+int ramfs_mount(const char* path) {
+    if (!ramfs_root) {
+        debug_print("RAMFS not initialized.\n");
+        return -1;
+    }
+    if (vfs_mount(path, ramfs_root) != 0) {
+        debug_print("RAMFS: Failed to mount at ");
+        debug_print(path);
+        debug_print("\n");
+        return -1;
+    }
+    debug_print("RAMFS mounted at ");
+    debug_print(path);
+    debug_print("\n");
+    return 0;
+}
 
-    memcpy(buffer, data->file_data + offset, size);
+static ssize_t ramfs_read(vfs_node_t* node, void* buffer, size_t size, off_t offset) {
+    ramfs_node_t* rnode = (ramfs_node_t*)node->impl;
+    if (!rnode || !(node->flags & VFS_FILE)) return -1;
+
+    if (offset >= rnode->size) return 0; // EOF
+    if (offset + size > rnode->size) size = rnode->size - offset;
+
+    memcpy(buffer, rnode->data + offset, size);
     return size;
 }
 
-static uint32_t ramfs_write(vfs_node_t* node, uint32_t offset, uint32_t size, uint8_t* buffer) {
-    if (node->flags & VFS_DIRECTORY) return 0;
-    ramfs_data_t* data = &ramfs_node_data[node->inode];
-    if (!data->file_data) {
-        data->file_data = (uint8_t*)pmm_alloc_frame();
-        if (!data->file_data) return 0; 
+static ssize_t ramfs_write(vfs_node_t* node, const void* buffer, size_t size, off_t offset) {
+    ramfs_node_t* rnode = (ramfs_node_t*)node->impl;
+    if (!rnode || !(node->flags & VFS_FILE)) return -1;
+
+    // Expand capacity if needed
+    if (offset + size > rnode->capacity) {
+        size_t new_capacity = rnode->capacity == 0 ? 4096 : rnode->capacity * 2;
+        while (offset + size > new_capacity) new_capacity *= 2;
+
+        uint8_t* new_data = (uint8_t*)kmalloc(new_capacity);
+        if (!new_data) return -1; // Out of memory
+
+        if (rnode->data) {
+            memcpy(new_data, rnode->data, rnode->size);
+            kfree(rnode->data);
+        }
+        rnode->data = new_data;
+        rnode->capacity = new_capacity;
     }
 
-    if (offset + size > PMM_FRAME_SIZE) size = PMM_FRAME_SIZE - offset;
-    if (offset > PMM_FRAME_SIZE) return 0;
+    memcpy(rnode->data + offset, buffer, size);
+    if (offset + size > rnode->size) rnode->size = offset + size;
+    node->length = rnode->size;
 
-    memcpy(data->file_data + offset, buffer, size);
-    if (offset + size > node->length) node->length = offset + size;
     return size;
-}
-
-static struct dirent* ramfs_readdir(vfs_node_t* node, uint32_t index) {
-    if (!(node->flags & VFS_DIRECTORY)) return NULL;
-    ramfs_data_t* data = &ramfs_node_data[node->inode];
-    
-    if (index < MAX_DIR_ENTRIES && data->children[index]) {
-        strcpy(ramfs_dirent_buffer.name, data->children[index]->name);
-        ramfs_dirent_buffer.inode_num = data->children[index]->inode;
-        return &ramfs_dirent_buffer;
-    }
-    return NULL;
 }
 
 static vfs_node_t* ramfs_finddir(vfs_node_t* node, const char* name) {
-    if (!(node->flags & VFS_DIRECTORY)) return NULL;
-    ramfs_data_t* data = &ramfs_node_data[node->inode];
-    for (int i = 0; i < MAX_DIR_ENTRIES; ++i) {
-        if (data->children[i] && strcmp(data->children[i]->name, name) == 0) {
-            return data->children[i];
+    ramfs_node_t* rnode = (ramfs_node_t*)node->impl;
+    if (!rnode || !(node->flags & VFS_DIRECTORY)) return NULL;
+
+    ramfs_node_t* child = rnode->children;
+    while (child) {
+        if (strcmp(child->vfs_node.name, name) == 0) {
+            return &child->vfs_node;
         }
+        child = child->next_sibling;
     }
     return NULL;
-}
-
-vfs_node_t* ramfs_create_pipe(vfs_node_t* parent, const char* name) {
-    if (!(parent->flags & VFS_DIRECTORY)) return NULL;
-    ramfs_data_t* data = &ramfs_node_data[parent->inode];
-
-    for (int i = 0; i < MAX_DIR_ENTRIES; ++i) {
-        if (!data->children[i]) {
-            // Allocate a VFS node with the pipe flag
-            vfs_node_t* new_node = ramfs_alloc_node(name, VFS_PIPE);
-            if (!new_node) {
-                return NULL; // Allocation failed
-            }
-
-            // Create the underlying pipe object
-            new_node->pipe = pipe_create();
-            if (!new_node->pipe) {
-                // In a more robust implementation, we would free the allocated vfs_node here.
-                // For ramfs, we have a fixed pool, so we just fail.
-                return NULL;
-            }
-            
-            // Link it into the directory
-            data->children[i] = new_node;
-            return new_node;
-        }
-    }
-
-    return NULL; // Directory is full
 }
 
 static vfs_node_t* ramfs_create(vfs_node_t* parent, const char* name, uint32_t flags) {
-    if (!(parent->flags & VFS_DIRECTORY)) return NULL;
-    ramfs_data_t* data = &ramfs_node_data[parent->inode];
-    for (int i = 0; i < MAX_DIR_ENTRIES; ++i) {
-        if (!data->children[i]) {
-            vfs_node_t* new_node = ramfs_alloc_node(name, flags);
-            if (new_node) data->children[i] = new_node;
-            return new_node;
-        }
-    }
-    return NULL;
+    ramfs_node_t* rparent = (ramfs_node_t*)parent->impl;
+    if (!rparent || !(parent->flags & VFS_DIRECTORY)) return NULL;
+
+    ramfs_node_t* new_node = (ramfs_node_t*)kmalloc(sizeof(ramfs_node_t));
+    if (!new_node) return NULL;
+
+    memset(new_node, 0, sizeof(ramfs_node_t));
+    strncpy(new_node->vfs_node.name, name, sizeof(new_node->vfs_node.name) - 1);
+    new_node->vfs_node.flags = flags | VFS_FILE; // Always a file for create
+    new_node->vfs_node.mask = 0666; // rw-rw-rw-
+    new_node->vfs_node.inode = 0; // TODO: Assign unique inode
+    new_node->vfs_node.length = 0;
+    new_node->vfs_node.impl = new_node;
+
+    new_node->vfs_node.read = ramfs_read;
+    new_node->vfs_node.write = ramfs_write;
+
+    // Add to parent's children list
+    new_node->next_sibling = rparent->children;
+    rparent->children = new_node;
+
+    debug_print("RAMFS: Created file ");
+    debug_print(name);
+    debug_print("\n");
+
+    return &new_node->vfs_node;
+}
+
+static int ramfs_mkdir(vfs_node_t* parent, const char* name, uint32_t flags) {
+    ramfs_node_t* rparent = (ramfs_node_t*)parent->impl;
+    if (!rparent || !(parent->flags & VFS_DIRECTORY)) return -1;
+
+    ramfs_node_t* new_node = (ramfs_node_t*)kmalloc(sizeof(ramfs_node_t));
+    if (!new_node) return -1;
+
+    memset(new_node, 0, sizeof(ramfs_node_t));
+    strncpy(new_node->vfs_node.name, name, sizeof(new_node->vfs_node.name) - 1);
+    new_node->vfs_node.flags = flags | VFS_DIRECTORY;
+    new_node->vfs_node.mask = 0777; // rwxrwxrwx
+    new_node->vfs_node.inode = 0; // TODO: Assign unique inode
+    new_node->vfs_node.length = 0;
+    new_node->vfs_node.impl = new_node;
+
+    new_node->vfs_node.finddir = ramfs_finddir;
+    new_node->vfs_node.create = ramfs_create;
+    new_node->vfs_node.mkdir = ramfs_mkdir;
+
+    // Add to parent's children list
+    new_node->next_sibling = rparent->children;
+    rparent->children = new_node;
+
+    debug_print("RAMFS: Created directory ");
+    debug_print(name);
+    debug_print("\n");
+
+    return 0;
 }

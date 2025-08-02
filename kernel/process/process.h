@@ -102,6 +102,12 @@ void schedule(void);
 // Creates a new thread in the current process.
 thread_t* thread_create(void (*entry_point)(void));
 
+// Exits the current process.
+void process_exit(int exit_code);
+
+// Sends a signal to a process.
+void process_send_signal(pid_t pid, uint32_t signal);
+
 // Assembly function for context switching
 extern void context_switch(uint32_t* old_esp, uint32_t new_esp);
 

@@ -10,15 +10,53 @@ set(CMAKE_SYSTEM_PROCESSOR x86_64)
 set(CMAKE_C_FLAGS "-ffreestanding -O2 -Wall -Wextra")
 set(CMAKE_ASM_NASM_FLAGS "-f elf64 -g")
 
-file(GLOB_RECURSE SOURCES
+file(GLOB_RECURSE KERNEL_SOURCES
     LIST_DIRECTORIES false
     "*.c" "*.asm"
 )
 
-list(FILTER SOURCES EXCLUDE REGEX "${CMAKE_SOURCE_DIR}/build_exclude/.*")
-list(FILTER SOURCES EXCLUDE REGEX "${CMAKE_SOURCE_DIR}/build_exclude_drivers/.*")
+list(FILTER KERNEL_SOURCES EXCLUDE REGEX "${CMAKE_SOURCE_DIR}/build_exclude/.*")
+list(FILTER KERNEL_SOURCES EXCLUDE REGEX "${CMAKE_SOURCE_DIR}/build_exclude_drivers/.*")
+
+# Add security framework sources
+file(GLOB_RECURSE SECURITY_SOURCES
+    LIST_DIRECTORIES false
+    "security/*.c"
+)
+
+set(SOURCES ${KERNEL_SOURCES} ${SECURITY_SOURCES}
+    kernel/ipc/message_queue.c
+    drivers/network/ethernet.c
+    kernel/fs/ramfs.c
+    kernel/shell.c
+    userland/app_store.c
+    libs/libc/stdio.c
+    libs/libc/stdlib.c
+    kernel/vm/hypervisor.c
+    userland/desktop/desktop.c
+    kernel/swap/swap_manager.c
+    kernel/ipc/shared_memory.c
+    drivers/gpu/vulkan/vulkan_driver.c
+    kernel/net/ipv4.c
+    kernel/net/arp.c
+    kernel/net/tcp.c
+    kernel/net/udp.c
+    kernel/net/icmp.c
+    kernel/net/dhcp.c
+    kernel/net/dns.c
+    kernel/fs/raeenfs.c
+    drivers/ata/ata.c
+    kernel/fs/fat32.c
+    userland/desktop/window_manager.c
+)
 
 add_executable(raeenos.elf ${SOURCES})
+
+# Add security include directory
+target_include_directories(raeenos.elf PRIVATE ${CMAKE_SOURCE_DIR}/security)
+
+# Add libc include directory
+target_include_directories(raeenos.elf PRIVATE ${CMAKE_SOURCE_DIR}/libs/libc/include)
 
 # Build RaeShell
 add_executable(raeshell userland/raeshell/raeshell.c)
@@ -27,6 +65,9 @@ set_target_properties(raeshell PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINA
 set_target_properties(raeenos.elf PROPERTIES
     LINK_FLAGS "-T ${CMAKE_SOURCE_DIR}/kernel/linker.ld -nostdlib"
 )
+
+link_directories(${CMAKE_SOURCE_DIR}/security)
+target_link_libraries(raeenos.elf security)
 
 add_custom_command(
     TARGET raeenos.elf

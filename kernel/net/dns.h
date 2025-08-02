@@ -1,24 +1,14 @@
 #ifndef DNS_H
 #define DNS_H
 
-#include "include/types.h"
-#include "tcpip.h"
+#include <stdint.h>
+#include <stdbool.h>
+#include "ipv4.h"
 
-// DNS packet structure (simplified)
-typedef struct {
-    uint16_t id;
-    uint16_t flags;
-    uint16_t qdcount;
-    uint16_t ancount;
-    uint16_t nscount;
-    uint16_t arcount;
-    // Followed by questions, answers, authority, and additional sections
-} __attribute__((packed)) dns_header_t;
-
-// Initialize DNS client
+// Initialize the DNS client
 void dns_init(void);
 
-// Resolve a hostname to an IP address
-int dns_resolve(const char* hostname, ipv4_addr_t* ip_address);
+// Resolve a hostname to an IPv4 address
+ipv4_addr_t dns_resolve_hostname(const char* hostname);
 
 #endif // DNS_H

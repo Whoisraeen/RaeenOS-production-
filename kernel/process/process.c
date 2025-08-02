@@ -6,8 +6,7 @@
 #include "../paging.h"
 #include "../memory.h"     // For kmalloc/kfree
 #include "../string.h"    // For memset and string functions
-
-
+#include "../sync.h"      // For spinlock
 
 // The process table
 process_t process_table[MAX_PROCESSES];
@@ -21,9 +20,14 @@ process_t* ready_queues[NUM_PRIORITY_LEVELS];
 // The next available Process ID
 static uint32_t next_pid = 0;
 
+// Spinlock for process table and scheduler access
+static spinlock_t process_lock = SPINLOCK_INIT;
+
 // Initializes the process management system.
 void process_init(void) {
     vga_puts("Initializing process management...\n");
+
+    spinlock_acquire(&process_lock);
 
     // Clear the process table
     for (int i = 0; i < MAX_PROCESSES; ++i) {
@@ -45,13 +49,16 @@ void process_init(void) {
         ready_queues[i] = NULL;
     }
 
+    spinlock_release(&process_lock);
     vga_puts("Process management initialized. Kernel is PID 0.\n");
 }
 
 // Creates a new process.
 process_t* process_create(void (*entry_point)(void)) {
+    spinlock_acquire(&process_lock);
+
     for (int i = 1; i < MAX_PROCESSES; ++i) { // Start from 1, 0 is the kernel
-        if (process_table[i].state == PROCESS_STATE_TERMINATED) {
+        if (process_table[i].state == PROCESS_STATE_TERMINATED || process_table[i].state == PROCESS_STATE_UNUSED) {
             process_t* p = &process_table[i];
             p->pid = next_pid++;
             p->parent_pid = current_process ? current_process->pid : 0;
@@ -67,6 +74,7 @@ process_t* process_create(void (*entry_point)(void)) {
             // Allocate a kernel stack
             p->kernel_stack_top = (uintptr_t)pmm_alloc_frame() + PMM_FRAME_SIZE;
             if (!p->kernel_stack_top) {
+                spinlock_release(&process_lock);
                 return NULL; // Out of memory
             }
 
@@ -74,6 +82,7 @@ process_t* process_create(void (*entry_point)(void)) {
             p->page_directory = paging_clone_directory(current_process->page_directory);
             if (!p->page_directory) {
                 pmm_free_frame((void*)(p->kernel_stack_top - PMM_FRAME_SIZE));
+                spinlock_release(&process_lock);
                 return NULL; // Out of memory
             }
 
@@ -102,6 +111,7 @@ process_t* process_create(void (*entry_point)(void)) {
             if (!p->threads) {
                 paging_free_directory(p->page_directory);
                 pmm_free_frame((void*)(p->kernel_stack_top - PMM_FRAME_SIZE));
+                spinlock_release(&process_lock);
                 return NULL; // Out of memory
             }
             p->threads->id = 0;
@@ -120,16 +130,21 @@ process_t* process_create(void (*entry_point)(void)) {
                 ready_queues[p->priority_class]->next = p;
             }
 
+            spinlock_release(&process_lock);
             return p;
         }
     }
+    spinlock_release(&process_lock);
     return NULL; // No free process slots
 }
 
 // Creates a new thread in the current process.
 thread_t* thread_create(void (*entry_point)(void)) {
+    spinlock_acquire(&process_lock);
+
     thread_t* t = (thread_t*)kmalloc(sizeof(thread_t));
     if (!t) {
+        spinlock_release(&process_lock);
         return NULL; // Out of memory
     }
 
@@ -142,6 +157,7 @@ thread_t* thread_create(void (*entry_point)(void)) {
     uintptr_t kernel_stack_top = (uintptr_t)pmm_alloc_frame() + PMM_FRAME_SIZE;
     if (!kernel_stack_top) {
         kfree(t);
+        spinlock_release(&process_lock);
         return NULL; // Out of memory
     }
 
@@ -162,12 +178,15 @@ thread_t* thread_create(void (*entry_point)(void)) {
     t->ebp = (uintptr_t)stack;
     t->eip = (uintptr_t)entry_point;
 
+    spinlock_release(&process_lock);
     return t;
 }
 
 
 void process_cleanup(process_t* proc) {
     if (!proc) return;
+
+    spinlock_acquire(&process_lock);
 
     // Free the process's page directory
     if (proc->page_directory) {
@@ -195,24 +214,95 @@ void process_cleanup(process_t* proc) {
     proc->parent_pid = 0;
     proc->state = PROCESS_STATE_UNUSED;
     proc->next = NULL;
+
+    spinlock_release(&process_lock);
 }
 
-// Removed unused itoa function
+// Exits the current process.
+void process_exit(int exit_code) {
+    spinlock_acquire(&process_lock);
+
+    process_t* proc = (process_t*)current_process;
+    proc->exit_code = exit_code;
+    proc->state = PROCESS_STATE_ZOMBIE; // Mark as zombie
+
+    // Remove from ready queue
+    process_t* current_queue = ready_queues[proc->priority_class];
+    if (current_queue == proc) {
+        if (proc->next == proc) {
+            ready_queues[proc->priority_class] = NULL;
+        } else {
+            process_t* tail = proc->next;
+            while (tail->next != proc) {
+                tail = tail->next;
+            }
+            tail->next = proc->next;
+            ready_queues[proc->priority_class] = proc->next;
+        }
+    } else {
+        process_t* prev = current_queue;
+        while (prev && prev->next != proc) {
+            prev = prev->next;
+        }
+        if (prev) {
+            prev->next = proc->next;
+        }
+    }
+
+    // If parent is waiting, wake it up
+    // TODO: Implement proper waiting mechanism (e.g., waitpid syscall)
+
+    spinlock_release(&process_lock);
+    schedule(); // Force a context switch
+}
+
+// Sends a signal to a process.
+void process_send_signal(pid_t pid, uint32_t signal) {
+    spinlock_acquire(&process_lock);
+
+    process_t* proc = get_process(pid);
+    if (proc) {
+        proc->pending_signals |= (1 << signal); // Set the signal bit
+        // TODO: Implement actual signal handling logic (e.g., interrupt process, run handler)
+    }
+
+    spinlock_release(&process_lock);
+}
 
 // Multi-level feedback queue scheduler.
 void schedule(void) {
-    if (!current_process) return;
+    spinlock_acquire(&process_lock);
 
-    // Find the next ready process
+    if (!current_process) {
+        spinlock_release(&process_lock);
+        return;
+    }
+
+    // Find the next ready process based on priority
     process_t* next_proc = NULL;
     for (int i = 0; i < NUM_PRIORITY_LEVELS; ++i) {
         if (ready_queues[i] != NULL) {
-            next_proc = ready_queues[i];
+            // Implement round-robin within the same priority level
+            next_proc = ready_queues[i]->next; // Get the next process in the circular list
+            if (next_proc == ready_queues[i]) { // If only one process in this queue
+                // No change in next_proc
+            }
             break;
         }
     }
 
     if (next_proc != NULL) {
+        // If the current process is still running and has higher or equal priority,
+        // and is not the same as the next_proc, don't switch unless forced.
+        // This is a basic preemption check.
+        if (current_process->state == PROCESS_STATE_RUNNING && 
+            current_process->priority_class <= next_proc->priority_class &&
+            current_process != next_proc) {
+            // No preemption, current process continues
+            spinlock_release(&process_lock);
+            return;
+        }
+
         // Remove the process from the ready queue
         if (next_proc->next == next_proc) {
             ready_queues[next_proc->priority_class] = NULL;
@@ -225,23 +315,37 @@ void schedule(void) {
             ready_queues[next_proc->priority_class] = next_proc->next;
         }
 
-        // Switch to the new process
+        // Save current process state and switch to the new process
         process_t* prev_proc = (process_t*)current_process;
         current_process = next_proc;
         prev_proc->state = PROCESS_STATE_READY;
         next_proc->state = PROCESS_STATE_RUNNING;
 
-        // Add the previous process back to the ready queue
-        if (ready_queues[prev_proc->priority_class] == NULL) {
-            ready_queues[prev_proc->priority_class] = prev_proc;
-            prev_proc->next = prev_proc;
-        } else {
-            prev_proc->next = ready_queues[prev_proc->priority_class]->next;
-            ready_queues[prev_proc->priority_class]->next = prev_proc;
+        // Add the previous process back to the ready queue if it's not exiting
+        if (prev_proc->state != PROCESS_STATE_ZOMBIE && prev_proc->state != PROCESS_STATE_TERMINATED) {
+            if (ready_queues[prev_proc->priority_class] == NULL) {
+                ready_queues[prev_proc->priority_class] = prev_proc;
+                prev_proc->next = prev_proc;
+            } else {
+                prev_proc->next = ready_queues[prev_proc->priority_class]->next;
+                ready_queues[prev_proc->priority_class]->next = prev_proc;
+            }
         }
 
         context_switch(&prev_proc->esp, next_proc->esp);
     }
+
+    spinlock_release(&process_lock);
+}
+
+// Gets a process by its PID.
+process_t* get_process(pid_t pid) {
+    for (int i = 0; i < MAX_PROCESSES; ++i) {
+        if (process_table[i].pid == pid) {
+            return &process_table[i];
+        }
+    }
+    return NULL;
 }
 
 // Gets the currently running process.
