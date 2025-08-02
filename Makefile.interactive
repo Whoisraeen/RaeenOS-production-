@@ -1,0 +1,199 @@
+# RaeenOS Interactive Kernel Build Configuration
+# Combines working multiboot approach with production components
+# and interactive shell capabilities
+
+# Project configuration
+PROJECT_NAME = raeenos-interactive
+KERNEL_NAME = raeenos-interactive.bin
+ISO_NAME = raeenos-interactive.iso
+
+# Architecture and build settings
+ARCH = x86_64
+BUILD_DIR = build_interactive
+ISO_DIR = $(BUILD_DIR)/iso
+KERNEL_DIR = kernel
+
+# Toolchain
+CC = gcc
+AS = nasm
+LD = ld
+OBJCOPY = objcopy
+
+# Compiler flags for production kernel
+CFLAGS = -m64 -ffreestanding -fno-stack-protector -fno-builtin \
+         -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra \
+         -Werror -std=c11 -mno-red-zone -mno-mmx -mno-sse \
+         -mno-sse2 -mcmodel=kernel -fno-pic -fno-pie \
+         -O2 -DKERNEL_BUILD -I. -I./kernel
+
+# Assembler flags
+ASFLAGS = -f elf64
+
+# Linker flags
+LDFLAGS = -T $(KERNEL_DIR)/linker_multiboot.ld -nostdlib -n
+
+# Core kernel objects
+KERNEL_OBJS = $(BUILD_DIR)/boot_multiboot.o \
+              $(BUILD_DIR)/kernel_interactive.o \
+              $(BUILD_DIR)/kernel_keyboard_enhanced.o \
+              $(BUILD_DIR)/kernel_helpers.o
+
+# Production component objects
+PRODUCTION_OBJS = $(BUILD_DIR)/heap_production.o \
+                  $(BUILD_DIR)/idt_production.o \
+                  $(BUILD_DIR)/hal_stub.o
+
+# Kernel subsystem objects
+SUBSYSTEM_OBJS = $(BUILD_DIR)/kernel/vga.o \
+                 $(BUILD_DIR)/kernel/string.o \
+                 $(BUILD_DIR)/kernel/memory.o \
+                 $(BUILD_DIR)/kernel/gdt.o \
+                 $(BUILD_DIR)/kernel/gdt_asm.o \
+                 $(BUILD_DIR)/kernel/idt.o \
+                 $(BUILD_DIR)/kernel/isr_handler.o \
+                 $(BUILD_DIR)/kernel/pic.o \
+                 $(BUILD_DIR)/kernel/paging_asm.o \
+                 $(BUILD_DIR)/kernel/pmm_stubs.o \
+                 $(BUILD_DIR)/kernel/sync_stubs.o
+
+# All objects
+ALL_OBJS = $(KERNEL_OBJS) $(PRODUCTION_OBJS) $(SUBSYSTEM_OBJS)
+
+# Default target
+.PHONY: all clean iso run run-virtualbox
+
+all: $(BUILD_DIR)/$(KERNEL_NAME)
+
+# Create build directory
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
+	mkdir -p $(BUILD_DIR)/kernel
+	mkdir -p $(ISO_DIR)/boot/grub
+
+# Multiboot entry point
+$(BUILD_DIR)/boot_multiboot.o: $(KERNEL_DIR)/boot_multiboot.asm | $(BUILD_DIR)
+	$(AS) $(ASFLAGS) $< -o $@
+
+# Interactive kernel main
+$(BUILD_DIR)/kernel_interactive.o: kernel_interactive.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Enhanced keyboard driver
+$(BUILD_DIR)/kernel_keyboard_enhanced.o: kernel_keyboard_enhanced.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Helper functions
+$(BUILD_DIR)/kernel_helpers.o: kernel_helpers.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Production components
+$(BUILD_DIR)/heap_production.o: heap_production.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/idt_production.o: idt_production.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/hal_stub.o: hal_stub.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Kernel subsystems
+$(BUILD_DIR)/kernel/vga.o: $(KERNEL_DIR)/vga.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/kernel/string.o: $(KERNEL_DIR)/string.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/kernel/memory.o: $(KERNEL_DIR)/memory.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/kernel/gdt.o: $(KERNEL_DIR)/gdt.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/kernel/gdt_asm.o: $(KERNEL_DIR)/gdt_asm.asm | $(BUILD_DIR)
+	$(AS) $(ASFLAGS) $< -o $@
+
+$(BUILD_DIR)/kernel/idt.o: $(KERNEL_DIR)/idt.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/kernel/isr_handler.o: $(KERNEL_DIR)/isr_handler.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/kernel/pic.o: $(KERNEL_DIR)/pic.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/kernel/paging_asm.o: $(KERNEL_DIR)/paging_asm.asm | $(BUILD_DIR)
+	$(AS) $(ASFLAGS) $< -o $@
+
+$(BUILD_DIR)/kernel/pmm_stubs.o: $(KERNEL_DIR)/pmm_stubs.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/kernel/sync_stubs.o: $(KERNEL_DIR)/sync_stubs.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Link the kernel
+$(BUILD_DIR)/$(KERNEL_NAME): $(ALL_OBJS) | $(BUILD_DIR)
+	$(LD) $(LDFLAGS) $(ALL_OBJS) -o $@
+	@echo "Interactive kernel built successfully: $(BUILD_DIR)/$(KERNEL_NAME)"
+
+# Create GRUB configuration
+$(ISO_DIR)/boot/grub/grub.cfg: | $(BUILD_DIR)
+	echo 'set timeout=3' > $@
+	echo 'set default=0' >> $@
+	echo '' >> $@
+	echo 'menuentry "RaeenOS Interactive Kernel" {' >> $@
+	echo '    multiboot2 /boot/$(KERNEL_NAME)' >> $@
+	echo '    boot' >> $@
+	echo '}' >> $@
+	echo '' >> $@
+	echo 'menuentry "RaeenOS Interactive (Safe Mode)" {' >> $@
+	echo '    multiboot2 /boot/$(KERNEL_NAME)' >> $@
+	echo '    boot' >> $@
+	echo '}' >> $@
+
+# Create bootable ISO
+iso: $(BUILD_DIR)/$(KERNEL_NAME) $(ISO_DIR)/boot/grub/grub.cfg
+	cp $(BUILD_DIR)/$(KERNEL_NAME) $(ISO_DIR)/boot/
+	grub-mkrescue -o $(BUILD_DIR)/$(ISO_NAME) $(ISO_DIR)
+	@echo "Bootable ISO created: $(BUILD_DIR)/$(ISO_NAME)"
+
+# Run in QEMU
+run: iso
+	qemu-system-x86_64 -cdrom $(BUILD_DIR)/$(ISO_NAME) -m 512M -serial stdio \
+	    -boot d -enable-kvm
+
+# Run in QEMU with debugging
+debug: iso
+	qemu-system-x86_64 -cdrom $(BUILD_DIR)/$(ISO_NAME) -m 512M -serial stdio \
+	    -boot d -s -S
+
+# Run in VirtualBox (requires VBoxManage)
+run-virtualbox: iso
+	@echo "Starting RaeenOS Interactive in VirtualBox..."
+	@echo "ISO location: $(PWD)/$(BUILD_DIR)/$(ISO_NAME)"
+	@VBoxManage createvm --name "RaeenOS-Interactive" --register --ostype Linux_64 2>/dev/null || true
+	@VBoxManage modifyvm "RaeenOS-Interactive" --memory 512 --vram 16 --cpus 2 2>/dev/null || true
+	@VBoxManage storagectl "RaeenOS-Interactive" --name "IDE" --add ide 2>/dev/null || true
+	@VBoxManage storageattach "RaeenOS-Interactive" --storagectl "IDE" --port 0 --device 0 --type dvddrive --medium $(PWD)/$(BUILD_DIR)/$(ISO_NAME) 2>/dev/null || true
+	@VBoxManage startvm "RaeenOS-Interactive" --type gui
+
+# Clean build files
+clean:
+	rm -rf $(BUILD_DIR)
+
+# Show build info
+info:
+	@echo "RaeenOS Interactive Kernel Build System"
+	@echo "======================================"
+	@echo "Architecture: $(ARCH)"
+	@echo "Build directory: $(BUILD_DIR)"
+	@echo "Kernel binary: $(BUILD_DIR)/$(KERNEL_NAME)"
+	@echo "ISO image: $(BUILD_DIR)/$(ISO_NAME)"
+	@echo ""
+	@echo "Available targets:"
+	@echo "  all           - Build kernel binary"
+	@echo "  iso           - Create bootable ISO"
+	@echo "  run           - Run in QEMU"
+	@echo "  run-virtualbox - Run in VirtualBox"
+	@echo "  debug         - Run in QEMU with GDB support"
+	@echo "  clean         - Clean build files"
+	@echo "  info          - Show this information"

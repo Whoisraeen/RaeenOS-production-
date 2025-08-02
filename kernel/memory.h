@@ -1,17 +1,14 @@
-#pragma once
+#ifndef MEMORY_H
+#define MEMORY_H
 
 #include <stddef.h> // For size_t
-
-// Kernel memory allocation
-void* kalloc(size_t size);
 
 // Initialize the kernel heap
 void memory_init(void);
 
-// Allocate a block of memory from the kernel heap
+// Kernel memory allocation
+void* kalloc(size_t size);
 void* kmalloc(size_t size);
-
-{{ ... }}
 void kfree(void* ptr);
 
 #endif

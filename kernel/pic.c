@@ -47,6 +47,12 @@ void pic_remap(int offset1, int offset2) {
     outb(PIC2_DATA, a2);
 }
 
+// Initialize the PIC (remap to standard offsets)
+void pic_init(void) {
+    // Remap PIC interrupts from 32-47 (standard kernel setup)
+    pic_remap(32, 40);
+}
+
 // Sends an End-of-Interrupt (EOI) signal to the PICs.
 void pic_send_eoi(unsigned char irq) {
     if (irq >= 8)

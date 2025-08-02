@@ -37,6 +37,19 @@ void vga_init(void) {
             vga_buffer[index] = ' ' | 0x0700;
         }
     }
+    terminal_row = 0;
+    terminal_column = 0;
+}
+
+void vga_clear(void) {
+    for (size_t y = 0; y < VGA_HEIGHT; y++) {
+        for (size_t x = 0; x < VGA_WIDTH; x++) {
+            const size_t index = y * VGA_WIDTH + x;
+            vga_buffer[index] = ' ' | 0x0700;
+        }
+    }
+    terminal_row = 0;
+    terminal_column = 0;
 }
 
 void vga_putc(char c) {
@@ -44,6 +57,16 @@ void vga_putc(char c) {
         terminal_column = 0;
         terminal_row++;
         terminal_scroll();
+        return;
+    }
+    
+    if (c == '\b') {
+        // Backspace
+        if (terminal_column > 0) {
+            terminal_column--;
+            const size_t index = terminal_row * VGA_WIDTH + terminal_column;
+            vga_buffer[index] = ' ' | 0x0700;
+        }
         return;
     }
     

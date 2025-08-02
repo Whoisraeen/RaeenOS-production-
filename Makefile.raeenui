@@ -1,0 +1,165 @@
+# Makefile for RaeenUI Prototype Kernel
+# Builds a revolutionary UI demonstration kernel with mouse and enhanced VGA support
+
+CC = gcc
+AS = nasm
+LD = ld
+
+# Compiler flags for kernel development
+CFLAGS = -m64 -ffreestanding -fno-stack-protector -fno-builtin \
+         -nostdlib -nostdinc -Wall -Wextra -mcmodel=large \
+         -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -fno-pic \
+         -I. -DRAEENUI_PROTOTYPE
+
+# Assembler flags
+ASFLAGS = -f elf64
+
+# Linker flags
+LDFLAGS = -n -T kernel/linker_simple.ld
+
+# Build directory
+BUILD_DIR = build_raeenui
+
+# Source files - RaeenUI prototype kernel
+KERNEL_SOURCES = kernel_raeenui_prototype_simple.c \
+                kernel_helpers.c \
+                kernel_keyboard_enhanced.c
+
+KERNEL_OBJECTS = $(BUILD_DIR)/kernel_raeenui_prototype_simple.o \
+                $(BUILD_DIR)/kernel_helpers.o \
+                $(BUILD_DIR)/kernel_keyboard_enhanced.o
+
+# Assembly sources
+ASM_SOURCES = kernel/boot_multiboot.asm
+
+ASM_OBJECTS = $(BUILD_DIR)/boot_multiboot.o
+
+# Kernel subsystem objects
+SUBSYSTEM_OBJECTS = $(BUILD_DIR)/kernel/gdt.o \
+                   $(BUILD_DIR)/kernel/gdt_asm.o \
+                   $(BUILD_DIR)/kernel/idt_asm.o \
+                   $(BUILD_DIR)/kernel/idt_simple.o \
+                   $(BUILD_DIR)/kernel/isr_handler.o \
+                   $(BUILD_DIR)/kernel/memory.o \
+                   $(BUILD_DIR)/kernel/pic.o \
+                   $(BUILD_DIR)/kernel/pmm_stubs.o \
+                   $(BUILD_DIR)/kernel/string.o \
+                   $(BUILD_DIR)/kernel/vga.o
+
+# All objects
+ALL_OBJECTS = $(ASM_OBJECTS) $(KERNEL_OBJECTS) $(SUBSYSTEM_OBJECTS)
+
+# Target names
+KERNEL_BIN = $(BUILD_DIR)/raeenui-prototype.bin
+ISO_FILE = $(BUILD_DIR)/raeenui-prototype.iso
+
+# Default target
+all: $(ISO_FILE)
+
+# Create build directory
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
+	mkdir -p $(BUILD_DIR)/kernel
+	mkdir -p $(BUILD_DIR)/iso/boot/grub
+
+# Compile C sources
+$(BUILD_DIR)/%.o: %.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Compile assembly sources
+$(BUILD_DIR)/boot_multiboot.o: kernel/boot_multiboot.asm | $(BUILD_DIR)
+	$(AS) $(ASFLAGS) $< -o $@
+
+# Compile kernel subsystem C sources
+$(BUILD_DIR)/kernel/%.o: kernel/%.c | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Compile kernel subsystem assembly sources
+$(BUILD_DIR)/kernel/%.o: kernel/%.asm | $(BUILD_DIR)
+	$(AS) $(ASFLAGS) $< -o $@
+
+# Link kernel
+$(KERNEL_BIN): $(ALL_OBJECTS) | $(BUILD_DIR)
+	$(LD) $(LDFLAGS) -o $@ $(ALL_OBJECTS)
+
+# Create GRUB configuration
+$(BUILD_DIR)/iso/boot/grub/grub.cfg: | $(BUILD_DIR)
+	echo 'set timeout=3' > $@
+	echo 'set default=0' >> $@
+	echo '' >> $@
+	echo 'menuentry "RaeenOS - Revolutionary UI Prototype" {' >> $@
+	echo '    multiboot2 /boot/raeenui-prototype.bin' >> $@
+	echo '    boot' >> $@
+	echo '}' >> $@
+	echo '' >> $@
+	echo 'menuentry "RaeenOS - Safe Mode (Text Only)" {' >> $@
+	echo '    multiboot2 /boot/raeenui-prototype.bin safe' >> $@
+	echo '    boot' >> $@
+	echo '}' >> $@
+
+# Copy kernel to ISO directory
+$(BUILD_DIR)/iso/boot/raeenui-prototype.bin: $(KERNEL_BIN) | $(BUILD_DIR)
+	cp $< $@
+
+# Create bootable ISO
+$(ISO_FILE): $(BUILD_DIR)/iso/boot/raeenui-prototype.bin $(BUILD_DIR)/iso/boot/grub/grub.cfg
+	grub-mkrescue -o $@ $(BUILD_DIR)/iso
+
+# Clean build files
+clean:
+	rm -rf $(BUILD_DIR)
+
+# Rebuild everything
+rebuild: clean all
+
+# Test the kernel (requires QEMU)
+test: $(ISO_FILE)
+	@echo "Testing RaeenUI Prototype Kernel..."
+	@echo "Controls in demo mode:"
+	@echo "  - Move mouse to interact with UI elements"
+	@echo "  - Click buttons to see animations"
+	@echo "  - ESC to switch between modes"
+	@echo "  - Mode 1: Traditional shell"
+	@echo "  - Mode 2: RaeenUI revolutionary demo"
+	@echo "  - Mode 3: AI assistant mode"
+	@echo ""
+	qemu-system-x86_64 -cdrom $(ISO_FILE) -m 512M -enable-kvm -cpu host
+
+# Test with more debugging options
+test-debug: $(ISO_FILE)
+	qemu-system-x86_64 -cdrom $(ISO_FILE) -m 512M -enable-kvm -cpu host \
+	    -serial stdio -monitor telnet:127.0.0.1:1234,server,nowait
+
+# Fast test without KVM (for compatibility)
+test-slow: $(ISO_FILE)
+	qemu-system-x86_64 -cdrom $(ISO_FILE) -m 512M
+
+# Show build information
+info:
+	@echo "RaeenUI Prototype Kernel Build System"
+	@echo "===================================="
+	@echo "Compiler: $(CC)"
+	@echo "Assembler: $(AS)"
+	@echo "Linker: $(LD)"
+	@echo "Build Dir: $(BUILD_DIR)"
+	@echo "Target: $(ISO_FILE)"
+	@echo ""
+	@echo "Features included:"
+	@echo "  - Enhanced VGA text mode with colors and shapes"
+	@echo "  - PS/2 mouse support with cursor"
+	@echo "  - RaeenUI component framework"
+	@echo "  - Multi-mode interface (Shell, Demo, AI)"
+	@echo "  - Real-time animations and effects"
+	@echo "  - Performance monitoring overlay"
+	@echo "  - AI assistant prototype"
+	@echo ""
+	@echo "Available targets:"
+	@echo "  all      - Build complete ISO"
+	@echo "  clean    - Remove build files"
+	@echo "  rebuild  - Clean and build"
+	@echo "  test     - Test with QEMU (KVM)"
+	@echo "  test-debug - Test with debugging"
+	@echo "  test-slow  - Test without KVM"
+	@echo "  info     - Show this information"
+
+.PHONY: all clean rebuild test test-debug test-slow info

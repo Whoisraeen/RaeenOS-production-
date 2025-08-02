@@ -1,0 +1,9 @@
+ASM = nasm
+ASMFLAGS = -f elf64
+BUILDDIR = build
+
+all: $(BUILDDIR)/kernel/interrupt_stubs.o
+
+$(BUILDDIR)/kernel/interrupt_stubs.o: kernel/interrupt_stubs.asm
+	@mkdir -p $(@D)
+	$(ASM) $(ASMFLAGS) $< -o $@

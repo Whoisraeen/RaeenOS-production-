@@ -3,6 +3,9 @@
 #ifndef PIC_H
 #define PIC_H
 
+// Initialize the PIC
+void pic_init(void);
+
 // Remaps the PIC to a new offset.
 // The master PIC will be at offset1, and the slave at offset2.
 void pic_remap(int offset1, int offset2);

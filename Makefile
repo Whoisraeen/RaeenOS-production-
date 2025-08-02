@@ -39,6 +39,7 @@ $(BUILDDIR)/%.o: %.c
 
 $(BUILDDIR)/%.o: %.asm
 	@$(MKDIR) $(@D)
+	@echo "[ASM] $<"
 	$(ASM) $(ASMFLAGS) $< -o $@
 
 clean:

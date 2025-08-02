@@ -1,0 +1,70 @@
+# RaeenOS Minimal Kernel Makefile
+# This builds only the essential, working components
+
+# Toolchain
+ASM = nasm
+CC = gcc
+LD = ld
+MKDIR = mkdir -p
+
+# Directories
+BUILDDIR = build_minimal
+TARGET = $(BUILDDIR)/raeenos.bin
+
+# Flags
+ASMFLAGS = -f elf64
+ASMFLAGS_32 = -f elf32
+CFLAGS = -std=gnu99 -m64 -ffreestanding -O2 -Wall -Wextra -I. -Ikernel -Idrivers
+LDFLAGS = -T kernel/linker_boot.ld -nostdlib
+
+# Essential source files only (files that compile successfully)
+C_SRCS := kernel_minimal.c heap_production.c idt_production.c hal_stub.c
+C_SRCS += kernel/vga.c kernel/string.c kernel/gdt.c
+C_SRCS += kernel/sync_stubs.c kernel/pmm_stubs.c kernel/hal_impl.c kernel/isr_handler.c
+
+# Assembly files
+ASM_SRCS := kernel/interrupt_stubs_complete.asm kernel/paging_asm.asm kernel/process/switch.asm
+ASM_SRCS += kernel/gdt_asm.asm kernel/multiboot2.asm
+
+# Object files
+OBJS := $(patsubst %.c,$(BUILDDIR)/%.o,$(C_SRCS))
+OBJS += $(patsubst %.asm,$(BUILDDIR)/%.o,$(ASM_SRCS))
+
+.PHONY: all clean
+
+all: $(TARGET)
+
+$(TARGET): $(OBJS)
+	@$(MKDIR) $(@D)
+	@echo "[LD] Linking kernel binary..."
+	$(LD) $(LDFLAGS) -o $(BUILDDIR)/raeenos.elf $(OBJS)
+	@echo "[OBJCOPY] Creating flat binary..."
+	objcopy -O binary $(BUILDDIR)/raeenos.elf $@
+	@echo "Kernel binary created: $(TARGET)"
+
+$(BUILDDIR)/%.o: %.c
+	@$(MKDIR) $(@D)
+	@echo "[CC] $<"
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILDDIR)/%.o: %.asm
+	@$(MKDIR) $(@D)
+	@echo "[ASM] $<"
+	$(ASM) $(ASMFLAGS) $< -o $@
+
+# Special rule for multiboot2.asm (supports mixed 32/64-bit)
+$(BUILDDIR)/kernel/multiboot2.o: kernel/multiboot2.asm
+	@$(MKDIR) $(@D)
+	@echo "[ASM] $< (mixed 32/64-bit)"
+	$(ASM) -f elf64 $< -o $@
+
+clean:
+	rm -rf $(BUILDDIR)
+
+.PHONY: test
+test:
+	@echo "Testing individual component compilation..."
+	@$(CC) $(CFLAGS) -c kernel_minimal.c -o /tmp/test_kernel.o && echo "  [OK] kernel_minimal.c"
+	@$(CC) $(CFLAGS) -c heap_production.c -o /tmp/test_heap.o && echo "  [OK] heap_production.c"
+	@$(CC) $(CFLAGS) -c idt_production.c -o /tmp/test_idt.o && echo "  [OK] idt_production.c"
+	@echo "All core components compile successfully!"

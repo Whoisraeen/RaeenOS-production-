@@ -24,35 +24,27 @@ static const size_t slab_sizes[] = {
 };
 #define NUM_SLAB_SIZES (sizeof(slab_sizes) / sizeof(slab_sizes[0]))
 
-// Slab cache structure
-typedef struct slab_cache {
-    const char* name;               // Cache name
-    size_t object_size;             // Size of each object
-    size_t align;                   // Alignment requirement
-    uint32_t flags;                 // Cache flags
+// Extended slab cache structure for implementation
+typedef struct slab_cache_impl {
+    slab_cache_t base;              // Base structure from interface
     
-    // Constructor/destructor
-    void (*ctor)(void* obj);
-    void (*dtor)(void* obj);
-    
-    // Slabs lists
+    // Implementation-specific fields
     struct list_head full_slabs;    // Completely allocated slabs
     struct list_head partial_slabs; // Partially allocated slabs
     struct list_head empty_slabs;   // Empty slabs
     
-    // Statistics
-    atomic64_t total_objects;
-    atomic64_t active_objects;
-    atomic64_t allocations;
-    atomic64_t frees;
+    // Extended statistics
     atomic64_t slab_count;
     
     // Synchronization
     spinlock_t lock;
     
     // Next cache in global list
-    struct slab_cache* next;
-} slab_cache_t;
+    struct slab_cache_impl* next;
+} slab_cache_impl_t;
+
+// Helper macro to convert from interface type to implementation type
+#define SLAB_CACHE_IMPL(cache) ((slab_cache_impl_t*)(cache))
 
 // Individual slab structure
 typedef struct slab {
@@ -128,6 +120,7 @@ static heap_manager_t heap_manager;
 static heap_manager_t* heap = &heap_manager;
 
 // Forward declarations
+static int kernel_snprintf(char* buf, size_t size, const char* fmt, ...);
 static slab_cache_t* create_slab_cache(const char* name, size_t size, size_t align, 
                                        uint32_t flags, void (*ctor)(void*), void (*dtor)(void*));
 static void destroy_slab_cache(slab_cache_t* cache);
@@ -162,7 +155,7 @@ int heap_init(void) {
     heap->config.leak_detection = true;
     
     // Create cache for cache descriptors
-    heap->cache_cache = create_slab_cache("cache_cache", sizeof(slab_cache_t), 
+    heap->cache_cache = create_slab_cache("cache_cache", sizeof(slab_cache_impl_t), 
                                          sizeof(void*), 0, NULL, NULL);
     if (!heap->cache_cache) {
         vga_puts("HEAP: Failed to create cache cache\n");
@@ -180,7 +173,7 @@ int heap_init(void) {
     // Create general-purpose caches
     for (int i = 0; i < NUM_SLAB_SIZES; i++) {
         char name[32];
-        snprintf(name, sizeof(name), "kmalloc-%zu", slab_sizes[i]);
+        kernel_snprintf(name, sizeof(name), "kmalloc-%zu", slab_sizes[i]);
         
         heap->general_caches[i] = create_slab_cache(name, slab_sizes[i], 
                                                    sizeof(void*), 0, NULL, NULL);
@@ -324,48 +317,43 @@ void* krealloc(void* ptr, size_t new_size, uint32_t flags) {
  */
 static slab_cache_t* create_slab_cache(const char* name, size_t size, size_t align, 
                                        uint32_t flags, void (*ctor)(void*), void (*dtor)(void*)) {
-    slab_cache_t* cache;
+    slab_cache_impl_t* cache_impl;
     
-    // Allocate cache descriptor
-    if (heap->cache_cache) {
-        cache = (slab_cache_t*)slab_alloc_from_cache(heap->cache_cache, GFP_KERNEL);
-    } else {
-        // Bootstrap allocation
-        void* page = pmm_alloc_page(GFP_KERNEL, -1);
-        if (!page) return NULL;
-        cache = (slab_cache_t*)page;
-    }
+    // Allocate cache descriptor - always allocate full implementation structure
+    void* page = pmm_alloc_page(GFP_KERNEL, -1);
+    if (!page) return NULL;
     
-    if (!cache) {
-        return NULL;
-    }
+    cache_impl = (slab_cache_impl_t*)page;
+    memset(cache_impl, 0, sizeof(slab_cache_impl_t));
     
-    memset(cache, 0, sizeof(slab_cache_t));
+    // Initialize base cache structure
+    strncpy(cache_impl->base.name, name, sizeof(cache_impl->base.name) - 1);
+    cache_impl->base.name[sizeof(cache_impl->base.name) - 1] = '\0';
+    cache_impl->base.object_size = size;
+    cache_impl->base.align = align ? align : sizeof(void*);
+    cache_impl->base.flags = flags;
+    cache_impl->base.ctor = ctor;
+    cache_impl->base.dtor = dtor;
     
-    // Initialize cache
-    cache->name = name;
-    cache->object_size = size;
-    cache->align = align ? align : sizeof(void*);
-    cache->flags = flags;
-    cache->ctor = ctor;
-    cache->dtor = dtor;
-    
-    // Initialize lists
-    INIT_LIST_HEAD(&cache->full_slabs);
-    INIT_LIST_HEAD(&cache->partial_slabs);
-    INIT_LIST_HEAD(&cache->empty_slabs);
+    // Initialize implementation-specific lists
+    INIT_LIST_HEAD(&cache_impl->full_slabs);
+    INIT_LIST_HEAD(&cache_impl->partial_slabs);
+    INIT_LIST_HEAD(&cache_impl->empty_slabs);
     
     // Initialize lock
-    spinlock_init(&cache->lock);
+    spinlock_init(&cache_impl->lock);
+    
+    // Initialize extended statistics
+    atomic64_set(&cache_impl->slab_count, 0);
     
     // Add to global cache list
     spin_lock(&heap->cache_list_lock);
-    cache->next = heap->cache_list;
-    heap->cache_list = cache;
+    cache_impl->next = (slab_cache_impl_t*)heap->cache_list;
+    heap->cache_list = (slab_cache_t*)cache_impl;
     atomic64_inc(&heap->stats.cache_count);
     spin_unlock(&heap->cache_list_lock);
     
-    return cache;
+    return &cache_impl->base;
 }
 
 /**
@@ -376,27 +364,29 @@ static void* slab_alloc_from_cache(slab_cache_t* cache, uint32_t flags) {
         return NULL;
     }
     
-    spin_lock(&cache->lock);
+    slab_cache_impl_t* cache_impl = SLAB_CACHE_IMPL(cache);
+    
+    spin_lock(&cache_impl->lock);
     
     slab_t* slab = NULL;
     
     // Try to find a partial slab first
-    if (!list_empty(&cache->partial_slabs)) {
-        slab = list_first_entry(&cache->partial_slabs, slab_t, list);
-    } else if (!list_empty(&cache->empty_slabs)) {
+    if (!list_empty(&cache_impl->partial_slabs)) {
+        slab = list_first_entry(&cache_impl->partial_slabs, slab_t, list);
+    } else if (!list_empty(&cache_impl->empty_slabs)) {
         // Use an empty slab
-        slab = list_first_entry(&cache->empty_slabs, slab_t, list);
+        slab = list_first_entry(&cache_impl->empty_slabs, slab_t, list);
         list_del(&slab->list);
-        list_add(&slab->list, &cache->partial_slabs);
+        list_add(&slab->list, &cache_impl->partial_slabs);
     } else {
         // Create a new slab
-        spin_unlock(&cache->lock);
+        spin_unlock(&cache_impl->lock);
         slab = create_slab(cache);
         if (!slab) {
             return NULL;
         }
-        spin_lock(&cache->lock);
-        list_add(&slab->list, &cache->partial_slabs);
+        spin_lock(&cache_impl->lock);
+        list_add(&slab->list, &cache_impl->partial_slabs);
     }
     
     // Allocate object from slab
@@ -410,14 +400,14 @@ static void* slab_alloc_from_cache(slab_cache_t* cache, uint32_t flags) {
         // Move slab to appropriate list if it's now full
         if (slab->free_count == 0) {
             list_del(&slab->list);
-            list_add(&slab->list, &cache->full_slabs);
+            list_add(&slab->list, &cache_impl->full_slabs);
         }
         
-        atomic64_inc(&cache->active_objects);
-        atomic64_inc(&cache->allocations);
+        cache->active_objects++;
+        cache->allocations++;
     }
     
-    spin_unlock(&cache->lock);
+    spin_unlock(&cache_impl->lock);
     
     // Call constructor if present
     if (obj && cache->ctor) {
@@ -435,32 +425,37 @@ static void slab_free_to_cache(slab_cache_t* cache, void* obj) {
         return;
     }
     
+    slab_cache_impl_t* cache_impl = SLAB_CACHE_IMPL(cache);
+    
     // Call destructor if present
     if (cache->dtor) {
         cache->dtor(obj);
     }
     
-    spin_lock(&cache->lock);
+    spin_lock(&cache_impl->lock);
     
     // Find which slab this object belongs to
     // This is simplified - in production we'd use more efficient lookup
     slab_t* target_slab = NULL;
     
     // Check full slabs first
-    list_for_each_entry(target_slab, &cache->full_slabs, list) {
+    struct list_head* pos, *n;
+    list_for_each_safe(pos, n, &cache_impl->full_slabs) {
+        target_slab = list_entry(pos, slab_t, list);
         if (obj >= target_slab->objects && 
             obj < (char*)target_slab->objects + (target_slab->objects_per_slab * cache->object_size)) {
             
             // Move from full to partial
             list_del(&target_slab->list);
-            list_add(&target_slab->list, &cache->partial_slabs);
+            list_add(&target_slab->list, &cache_impl->partial_slabs);
             break;
         }
     }
     
     // Check partial slabs
     if (!target_slab) {
-        list_for_each_entry(target_slab, &cache->partial_slabs, list) {
+        list_for_each_safe(pos, n, &cache_impl->partial_slabs) {
+            target_slab = list_entry(pos, slab_t, list);
             if (obj >= target_slab->objects && 
                 obj < (char*)target_slab->objects + (target_slab->objects_per_slab * cache->object_size)) {
                 break;
@@ -478,14 +473,14 @@ static void slab_free_to_cache(slab_cache_t* cache, void* obj) {
         // Move to empty list if slab is now completely free
         if (target_slab->free_count == target_slab->objects_per_slab) {
             list_del(&target_slab->list);
-            list_add(&target_slab->list, &cache->empty_slabs);
+            list_add(&target_slab->list, &cache_impl->empty_slabs);
         }
         
-        atomic64_dec(&cache->active_objects);
-        atomic64_inc(&cache->frees);
+        cache->active_objects--;
+        cache->frees++;
     }
     
-    spin_unlock(&cache->lock);
+    spin_unlock(&cache_impl->lock);
 }
 
 /**
@@ -543,7 +538,8 @@ static slab_t* create_slab(slab_cache_t* cache) {
     
     slab->freelist = prev;
     
-    atomic64_inc(&cache->slab_count);
+    slab_cache_impl_t* cache_impl = SLAB_CACHE_IMPL(cache);
+    atomic64_inc(&cache_impl->slab_count);
     
     return slab;
 }
@@ -625,7 +621,7 @@ static size_t find_slab_size(size_t size) {
 /**
  * Simple snprintf implementation for cache names
  */
-int snprintf(char* buf, size_t size, const char* fmt, ...) {
+static int kernel_snprintf(char* buf, size_t size, const char* fmt, ...) {
     // Very simple implementation - just copy format string
     // In production, this would be a full printf implementation
     if (!buf || !fmt || size == 0) return 0;
