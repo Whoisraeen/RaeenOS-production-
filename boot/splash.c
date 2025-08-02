@@ -5,7 +5,7 @@
 
 #include "splash.h"
 #include "../memory.h"
-#include "../string.h"
+#include "../libs/libc/include/string.h"
 #include "../kernel/timer.h"
 #include "../gpu/graphics_pipeline.h"
 
@@ -29,7 +29,7 @@ const char* SPLASH_MESSAGES[] = {
     "System ready"
 };
 
-// Default splash configuration
+// Default splash configurations
 const splash_config_t SPLASH_CONFIG_DEFAULT = {
     .screen_width = 1920,
     .screen_height = 1080,
@@ -62,6 +62,51 @@ const splash_config_t SPLASH_CONFIG_DEFAULT = {
     .min_display_time_ms = SPLASH_MIN_BOOT_TIME_MS
 };
 
+const splash_config_t SPLASH_CONFIG_MINIMAL = {
+    .screen_width = 800,
+    .screen_height = 600,
+    .bpp = 32,
+    .framebuffer = NULL,
+    .background_color = SPLASH_COLOR_BLACK,
+    .logo_color = SPLASH_COLOR_WHITE,
+    .progress_color = SPLASH_COLOR_LIGHT_GREY,
+    .text_color = SPLASH_COLOR_WHITE,
+    .animation_type = BOOT_ANIM_DOTS,
+    .boot_message = "Loading...",
+    .fade_duration_ms = 100,
+    .min_display_time_ms = 1000
+};
+
+const splash_config_t SPLASH_CONFIG_VERBOSE = {
+    .screen_width = 1024,
+    .screen_height = 768,
+    .bpp = 32,
+    .framebuffer = NULL,
+    .background_color = SPLASH_COLOR_BLACK,
+    .logo_color = SPLASH_COLOR_GREEN,
+    .progress_color = SPLASH_COLOR_GREEN,
+    .text_color = SPLASH_COLOR_LIGHT_GREY,
+    .animation_type = BOOT_ANIM_PROGRESS_BAR,
+    .boot_message = "Verbose Boot Mode",
+    .fade_duration_ms = 0,
+    .min_display_time_ms = 0
+};
+
+const splash_config_t SPLASH_CONFIG_RECOVERY = {
+    .screen_width = 1024,
+    .screen_height = 768,
+    .bpp = 32,
+    .framebuffer = NULL,
+    .background_color = SPLASH_COLOR_DARK_GREY,
+    .logo_color = SPLASH_COLOR_RED,
+    .progress_color = SPLASH_COLOR_RED,
+    .text_color = SPLASH_COLOR_WHITE,
+    .animation_type = BOOT_ANIM_PULSE,
+    .boot_message = "Recovery Mode",
+    .fade_duration_ms = 200,
+    .min_display_time_ms = 5000
+};
+
 /**
  * Initialize splash screen system
  */
@@ -72,9 +117,9 @@ bool splash_init(splash_config_t* config) {
     
     // Use provided config or default
     if (config) {
-        memory_copy(&g_splash_config, config, sizeof(splash_config_t));
+        memcpy(&g_splash_config, config, sizeof(splash_config_t));
     } else {
-        memory_copy(&g_splash_config, &SPLASH_CONFIG_DEFAULT, sizeof(splash_config_t));
+        memcpy(&g_splash_config, &SPLASH_CONFIG_DEFAULT, sizeof(splash_config_t));
     }
     
     // Initialize framebuffer if not provided
@@ -95,7 +140,7 @@ bool splash_init(splash_config_t* config) {
     }
     
     // Initialize boot progress
-    memory_set(&g_boot_progress, 0, sizeof(boot_progress_t));
+    memset(&g_boot_progress, 0, sizeof(boot_progress_t));
     g_boot_progress.current_state = SPLASH_STATE_INIT;
     g_boot_progress.start_time = splash_get_time_ms();
     g_boot_progress.verbose_mode = splash_detect_verbose_mode();
@@ -267,7 +312,7 @@ void splash_draw_progress_bar(void) {
     
     // Progress percentage text
     char progress_text[16];
-    string_format(progress_text, sizeof(progress_text), "%u%%", 
+    sprintf(progress_text, "%u%%", 
                  g_boot_progress.progress_percent);
     splash_draw_text(progress_text, x + w + 10, y - 5);
 }
@@ -485,4 +530,84 @@ splash_state_t splash_get_state(void) {
 
 uint32_t splash_get_progress(void) {
     return g_boot_progress.progress_percent;
+}
+
+// Placeholder implementations for missing functions
+static void splash_draw_pulse(void) {
+    // Implement pulse animation
+    debug_print("Splash: Pulse animation (placeholder).\n");
+}
+
+static void splash_fade_in(uint32_t duration_ms) {
+    // Implement fade-in effect
+    debug_print("Splash: Fade-in (placeholder).\n");
+}
+
+static void splash_fade_out(uint32_t duration_ms) {
+    // Implement fade-out effect
+    debug_print("Splash: Fade-out (placeholder).\n");
+}
+
+void splash_pulse_effect(uint32_t intensity) {
+    debug_print("Splash: Pulse effect (placeholder).\n");
+}
+
+void splash_glow_effect(uint32_t intensity) {
+    debug_print("Splash: Glow effect (placeholder).\n");
+}
+
+void splash_load_config(void) {
+    debug_print("Splash: Loading config (placeholder).\n");
+}
+
+void splash_save_config(splash_config_t* config) {
+    debug_print("Splash: Saving config (placeholder).\n");
+}
+
+void splash_set_theme(const char* theme_name) {
+    debug_print("Splash: Setting theme ");
+    debug_print(theme_name);
+    debug_print(" (placeholder).\n");
+}
+
+void splash_show_warning(const char* warning_message) {
+    debug_print("Splash: Warning: ");
+    debug_print(warning_message);
+    debug_print("\n");
+}
+
+void splash_show_panic(const char* panic_message) {
+    debug_print("Splash: PANIC: ");
+    debug_print(panic_message);
+    debug_print("\n");
+}
+
+void splash_delay_ms(uint32_t ms) {
+    // Simple busy-wait delay for now
+    uint32_t start_time = splash_get_time_ms();
+    while (splash_get_time_ms() - start_time < ms);
+}
+
+void splash_color_to_rgb(uint32_t color, uint8_t* r, uint8_t* g, uint8_t* b) {
+    if (r) *r = (color >> 16) & 0xFF;
+    if (g) *g = (color >> 8) & 0xFF;
+    if (b) *b = color & 0xFF;
+}
+
+uint32_t splash_blend_colors(uint32_t color1, uint32_t color2, uint8_t alpha) {
+    uint8_t alpha_inv = 255 - alpha;
+
+    uint8_t r1 = (color1 >> 16) & 0xFF;
+    uint8_t g1 = (color1 >> 8) & 0xFF;
+    uint8_t b1 = color1 & 0xFF;
+
+    uint8_t r2 = (color2 >> 16) & 0xFF;
+    uint8_t g2 = (color2 >> 8) & 0xFF;
+    uint8_t b2 = color2 & 0xFF;
+
+    uint8_t r = (r1 * alpha_inv + r2 * alpha) / 255;
+    uint8_t g = (g1 * alpha_inv + g2 * alpha) / 255;
+    uint8_t b = (b1 * alpha_inv + b2 * alpha) / 255;
+
+    return (0xFF << 24) | (r << 16) | (g << 8) | b;
 }

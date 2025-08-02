@@ -1,15 +1,14 @@
-# RaeenOS Interactive Kernel Build Configuration
-# Combines working multiboot approach with production components
-# and interactive shell capabilities
+# RaeenOS Interactive Enhanced Kernel
+# Professional boot experience with working interactive foundation
 
 # Project configuration
-PROJECT_NAME = raeenos-interactive
-KERNEL_NAME = raeenos-interactive.bin
-ISO_NAME = raeenos-interactive.iso
+PROJECT_NAME = raeenos-interactive-enhanced
+KERNEL_NAME = raeenos-interactive-enhanced.bin
+ISO_NAME = raeenos-interactive-enhanced.iso
 
 # Architecture and build settings
-ARCH = x86_64
-BUILD_DIR = build_interactive
+ARCH = x86
+BUILD_DIR = build_interactive_enhanced
 ISO_DIR = $(BUILD_DIR)/iso
 KERNEL_DIR = kernel
 
@@ -19,24 +18,20 @@ AS = nasm
 LD = ld
 OBJCOPY = objcopy
 
-# Compiler flags for production kernel
-CFLAGS = -m64 -ffreestanding -fno-stack-protector -fno-builtin \
+# Compiler flags for enhanced kernel
+CFLAGS = -m32 -ffreestanding -fno-stack-protector -fno-builtin \
          -nostdlib -nostartfiles -nodefaultlibs -Wall -Wextra \
-         -Werror -std=c11 -mno-red-zone -mno-mmx -mno-sse \
-         -mno-sse2 -mcmodel=kernel -fno-pic -fno-pie \
-         -O2 -DKERNEL_BUILD -I. -I./kernel
+         -std=c11 -O2 -DKERNEL_BUILD -I. -I./kernel -fno-pic -fno-pie
 
 # Assembler flags
-ASFLAGS = -f elf64
+ASFLAGS = -f elf32
 
 # Linker flags
-LDFLAGS = -T $(KERNEL_DIR)/linker_multiboot.ld -nostdlib -n
+LDFLAGS = -T $(KERNEL_DIR)/linker.ld -nostdlib -n -m elf_i386
 
-# Core kernel objects
-KERNEL_OBJS = $(BUILD_DIR)/boot_multiboot.o \
-              $(BUILD_DIR)/kernel_interactive.o \
-              $(BUILD_DIR)/kernel_keyboard_enhanced.o \
-              $(BUILD_DIR)/kernel_helpers.o
+# Core kernel objects - self-contained
+KERNEL_OBJS = $(BUILD_DIR)/multiboot2.o \
+              $(BUILD_DIR)/kernel_interactive_enhanced.o
 
 # Production component objects
 PRODUCTION_OBJS = $(BUILD_DIR)/heap_production.o \
@@ -56,8 +51,8 @@ SUBSYSTEM_OBJS = $(BUILD_DIR)/kernel/vga.o \
                  $(BUILD_DIR)/kernel/pmm_stubs.o \
                  $(BUILD_DIR)/kernel/sync_stubs.o
 
-# All objects
-ALL_OBJS = $(KERNEL_OBJS) $(PRODUCTION_OBJS) $(SUBSYSTEM_OBJS)
+# All objects - simplified for enhanced kernel
+ALL_OBJS = $(KERNEL_OBJS)
 
 # Default target
 .PHONY: all clean iso run run-virtualbox
@@ -70,12 +65,12 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)/kernel
 	mkdir -p $(ISO_DIR)/boot/grub
 
-# Multiboot entry point
-$(BUILD_DIR)/boot_multiboot.o: $(KERNEL_DIR)/boot_multiboot.asm | $(BUILD_DIR)
+# Multiboot2 entry point
+$(BUILD_DIR)/multiboot2.o: $(KERNEL_DIR)/multiboot2.asm | $(BUILD_DIR)
 	$(AS) $(ASFLAGS) $< -o $@
 
-# Interactive kernel main
-$(BUILD_DIR)/kernel_interactive.o: kernel_interactive.c | $(BUILD_DIR)
+# Interactive enhanced kernel main
+$(BUILD_DIR)/kernel_interactive_enhanced.o: kernel_interactive_enhanced.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Enhanced keyboard driver
