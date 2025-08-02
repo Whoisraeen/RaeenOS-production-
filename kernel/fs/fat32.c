@@ -101,6 +101,24 @@ static uint32_t fat32_cluster_to_sector(uint32_t cluster) {
     return cluster_start_sector + (cluster - 2) * boot_sector.sectors_per_cluster;
 }
 
+// Helper to find a free cluster in the FAT table
+static uint32_t fat32_find_free_cluster(void) {
+    debug_print("FAT32: Finding free cluster (simulated).\n");
+    // In a real implementation, this would scan the FAT table for a free entry.
+    return 0; // Dummy free cluster
+}
+
+// Helper to update the FAT table
+static int fat32_update_fat(uint32_t cluster, uint32_t next_cluster) {
+    debug_print("FAT32: Updating FAT for cluster ");
+    vga_put_hex(cluster);
+    debug_print(" to next ");
+    vga_put_hex(next_cluster);
+    debug_print(" (simulated).\n");
+    // In a real implementation, this would write to the FAT table sectors.
+    return 0;
+}
+
 int fat32_read_dir(uint32_t cluster, vfs_dirent_t* entries, uint32_t max_entries) {
     debug_print("FAT32: Reading directory from cluster ");
     vga_put_hex(cluster);
@@ -180,7 +198,27 @@ int fat32_write_file(uint32_t start_cluster, uint32_t offset, uint32_t size, con
     debug_print(" size ");
     vga_put_dec(size);
     debug_print(" (simulated).\n");
-    // In a real implementation, this would write data to the file's clusters.
+
+    // In a real implementation:
+    // 1. Traverse clusters to find the correct sector to write to.
+    // 2. Read the sector, modify the relevant bytes, and write it back.
+    // 3. Allocate new clusters and update FAT if file size increases.
+
+    uint32_t sector = fat32_cluster_to_sector(start_cluster); // Simplified
+    uint8_t sector_buffer[512];
+    // Read existing sector content
+    if (ata_read_sectors(0, sector, 1, sector_buffer) != 0) {
+        debug_print("FAT32: Failed to read sector for write.\n");
+        return -1;
+    }
+    // Modify content
+    memcpy(sector_buffer + offset, buffer, size);
+    // Write back
+    if (ata_write_sectors(0, sector, 1, sector_buffer) != 0) {
+        debug_print("FAT32: Failed to write sector.\n");
+        return -1;
+    }
+
     return size;
 }
 
@@ -190,8 +228,22 @@ int fat32_create_file(uint32_t parent_cluster, const char* filename, uint32_t* n
     debug_print(" in cluster ");
     vga_put_hex(parent_cluster);
     debug_print(" (simulated).\n");
-    // In a real implementation, this would find a free cluster, update FAT, and create directory entry.
-    if (new_cluster) *new_cluster = 0; // Dummy cluster
+
+    // In a real implementation:
+    // 1. Find a free cluster using fat32_find_free_cluster.
+    // 2. Update the FAT table for the new cluster.
+    // 3. Find a free directory entry in the parent_cluster.
+    // 4. Populate the directory entry with filename, attributes, and starting cluster.
+    // 5. Write the updated directory sector back to disk.
+
+    uint32_t allocated_cluster = fat32_find_free_cluster();
+    if (allocated_cluster == 0) {
+        debug_print("FAT32: No free clusters.\n");
+        return -1;
+    }
+    fat32_update_fat(allocated_cluster, 0xFFFFFFFF); // Mark as end of chain
+
+    if (new_cluster) *new_cluster = allocated_cluster;
     return 0;
 }
 
@@ -201,8 +253,18 @@ int fat32_create_dir(uint32_t parent_cluster, const char* dirname, uint32_t* new
     debug_print(" in cluster ");
     vga_put_hex(parent_cluster);
     debug_print(" (simulated).\n");
-    // In a real implementation, this would find a free cluster, update FAT, and create directory entry.
-    if (new_cluster) *new_cluster = 0; // Dummy cluster
+
+    // Similar to create_file, but also initialize the new directory's cluster
+    // with "." and ".." entries.
+
+    uint32_t allocated_cluster = fat32_find_free_cluster();
+    if (allocated_cluster == 0) {
+        debug_print("FAT32: No free clusters.\n");
+        return -1;
+    }
+    fat32_update_fat(allocated_cluster, 0xFFFFFFFF); // Mark as end of chain
+
+    if (new_cluster) *new_cluster = allocated_cluster;
     return 0;
 }
 
@@ -212,7 +274,13 @@ int fat32_delete_entry(uint32_t parent_cluster, const char* name) {
     debug_print(" from cluster ");
     vga_put_hex(parent_cluster);
     debug_print(" (simulated).\n");
-    // In a real implementation, this would mark directory entry as deleted and free clusters.
+
+    // In a real implementation:
+    // 1. Find the directory entry for 'name' in parent_cluster.
+    // 2. Mark the directory entry as deleted (first byte 0xE5).
+    // 3. Traverse the FAT chain for the file/directory and mark all clusters as free.
+    // 4. Write the updated directory sector and FAT sectors back to disk.
+
     return 0;
 }
 
