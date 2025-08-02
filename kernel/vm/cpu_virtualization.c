@@ -21,4 +21,3 @@ int cpu_virt_run_vcpu(void* vcpu_handle) {
 void cpu_virt_handle_vm_exit(void* vcpu_handle) {
     debug_print("CPU Virt: Handling VM exit (simulated).\n");
 }
-
