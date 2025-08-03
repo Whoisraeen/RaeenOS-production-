@@ -3,6 +3,7 @@
  * Coordinates the complete boot process from kernel to desktop
  */
 
+#include "../kernel/include/types.h"  // Include our types first
 #include "splash.h"
 #include "oobe.h"
 #include "session.h"
@@ -10,8 +11,8 @@
 #include "../gpu/graphics_pipeline.h"
 #include "../ui/desktop_shell.h"
 #include "../drivers/network/wifi.h"
-#include "../memory.h"
-#include "../string.h"
+#include "../kernel/memory.h"
+#include "string.h"
 
 // Boot orchestrator state
 typedef struct {

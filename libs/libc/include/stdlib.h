@@ -4,6 +4,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+// Exit status constants
+#define EXIT_SUCCESS 0
+#define EXIT_FAILURE 1
+
 // Memory allocation
 void* malloc(size_t size);
 void* calloc(size_t num, size_t size);

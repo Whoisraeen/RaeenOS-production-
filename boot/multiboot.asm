@@ -25,11 +25,11 @@ extern kernel_main
 
 _start:
     ; Set up stack
-    mov esp, stack_top
+    mov rsp, stack_top
     
-    ; Push multiboot info for kernel_main
-    push ebx    ; Multiboot info structure
-    push eax    ; Multiboot magic number
+    ; Set up parameters for kernel_main (System V ABI)
+    mov rdi, rax    ; First parameter: multiboot magic number
+    mov rsi, rbx    ; Second parameter: multiboot info structure
     
     ; Call the kernel
     call kernel_main

@@ -8,7 +8,18 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <pthread.h>
+// #include <pthread.h>  // Commented out to avoid type conflicts in kernel build
+
+// Define types that would normally come from pthread.h and stddef.h
+#ifndef _SIZE_T_DEFINED
+#define _SIZE_T_DEFINED
+typedef unsigned long size_t;
+#endif
+
+#ifndef _PTHREAD_MUTEX_T_DEFINED
+#define _PTHREAD_MUTEX_T_DEFINED
+typedef struct { int __dummy; } pthread_mutex_t;
+#endif
 
 // Forward declarations
 typedef struct VkInstance_T* VkInstance;

@@ -1,0 +1,51 @@
+cmake_minimum_required(VERSION 3.10)
+
+project(RaeenOS C ASM)
+
+enable_language(ASM_NASM)
+
+set(CMAKE_SYSTEM_NAME Generic)
+set(CMAKE_SYSTEM_PROCESSOR x86_64)
+
+set(CMAKE_C_FLAGS "-ffreestanding -O2 -Wall -Wextra")
+set(CMAKE_ASM_NASM_FLAGS "-f elf64 -g")
+
+# Core production kernel sources only
+set(CORE_PRODUCTION_SOURCES
+    kernel_main.c
+    pmm_production.c
+    vmm_production.c 
+    vmm_production_impl.c
+    heap_production.c
+    idt_production.c
+    syscall_production.c
+    kernel/vga.c
+    kernel/gdt.c
+    kernel/gdt_asm.asm
+    kernel/idt_asm.asm
+    kernel/isr_handler.c
+    kernel/memory.c
+    kernel/pmm_stubs.c
+    kernel/string.c
+    libs/libc/string.c
+    libs/libc/stdlib.c
+    kernel/boot_multiboot.asm
+)
+
+# Add include directories
+include_directories(.)
+include_directories(kernel)
+include_directories(kernel/include)
+include_directories(libs/libc/include)
+
+add_executable(raeenos_production.elf ${CORE_PRODUCTION_SOURCES})
+
+set_target_properties(raeenos_production.elf PROPERTIES
+    LINK_FLAGS "-T ${CMAKE_SOURCE_DIR}/kernel/linker.ld -nostdlib"
+)
+
+add_custom_command(
+    TARGET raeenos_production.elf
+    POST_BUILD
+    COMMAND ${CMAKE_OBJCOPY} -O binary raeenos_production.elf raeenos_production.bin
+)

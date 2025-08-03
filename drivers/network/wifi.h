@@ -13,8 +13,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "../pci/pci.h"
-#include "../../memory.h"
-#include "../../string.h"
+#include "../../kernel/memory.h"
+#include "string.h"
 
 // Forward declaration for interrupt registers
 typedef struct {

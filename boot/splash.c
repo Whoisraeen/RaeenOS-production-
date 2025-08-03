@@ -4,8 +4,8 @@
  */
 
 #include "splash.h"
-#include "../memory.h"
-#include "../libs/libc/include/string.h"
+#include "../kernel/memory.h"
+#include "string.h"
 #include "../kernel/timer.h"
 #include "../gpu/graphics_pipeline.h"
 

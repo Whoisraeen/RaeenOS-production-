@@ -1,6 +1,6 @@
 #include "acpi.h"
-#include "../../kernel/vga.h"
-#include "../../kernel/include/driver.h"
+#include "../kernel/vga.h"
+#include "../kernel/include/driver.h"
 
 // ACPI driver structure
 static driver_t acpi_driver = {

@@ -23,7 +23,8 @@
       "Bash(objdump:*)",
       "Bash(python3:*)",
       "Bash(grub-file:*)",
-      "Bash(cmake:*)"
+      "Bash(cmake:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": []
   }

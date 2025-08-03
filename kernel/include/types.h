@@ -167,7 +167,10 @@ typedef int64_t off_t;
 typedef uint32_t dev_t;    // Device identifier
 typedef uint32_t uid_t;    // User identifier
 typedef uint32_t gid_t;    // Group identifier
+#ifndef __PID_T_DEFINED
+#define __PID_T_DEFINED
 typedef uint32_t pid_t;    // Process identifier
+#endif
 typedef uint32_t mode_t;   // File mode/permissions
 
 // Page size constants
@@ -226,5 +229,8 @@ struct flock {
 #define SEEK_CUR    1   // Seek from current position
 #define SEEK_END    2   // Seek from end of file
 #endif
+
+// Atomic operations type
+typedef volatile uint32_t atomic_t;
 
 #endif

@@ -1,6 +1,6 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "../../libs/libc/include/stdio.h"
+#include "../../libs/libc/include/stdlib.h"
+#include "../../libs/libc/include/string.h"
 
 #define MAX_CMD_LEN 256
 
@@ -9,6 +9,15 @@ char* raeshell_read_line();
 
 int main(int argc, char **argv) {
     printf("Welcome to RaeShell!\n");
+    
+    // Use argc and argv to check for command line arguments
+    if (argc > 1) {
+        printf("Arguments provided: ");
+        for (int i = 1; i < argc; i++) {
+            printf("%s ", argv[i]);
+        }
+        printf("\n");
+    }
 
     // Run command loop
     raeshell_loop();

@@ -1,7 +1,7 @@
 #include "audio.h"
 #include "../pci/pci.h"
-#include "../../kernel/vga.h"
-#include "../../kernel/include/driver.h"
+#include "../kernel/vga.h"
+#include "../kernel/include/driver.h"
 
 // Audio driver structure
 static driver_t audio_driver = {

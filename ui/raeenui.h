@@ -368,7 +368,7 @@ struct RaeenUIWindow {
 // Main UI context
 struct RaeenUIContext {
     // System integration
-    GraphicsPipeline* graphics_pipeline;
+    GraphicsPipelineState* graphics_pipeline;
     void* window_manager;
     
     // Windows and views
@@ -413,7 +413,7 @@ struct RaeenUIContext {
 };
 
 // Core API functions
-RaeenUIContext* raeenui_create_context(GraphicsPipeline* graphics);
+RaeenUIContext* raeenui_create_context(GraphicsPipelineState* graphics);
 void raeenui_destroy_context(RaeenUIContext* context);
 bool raeenui_initialize(RaeenUIContext* context);
 void raeenui_shutdown(RaeenUIContext* context);

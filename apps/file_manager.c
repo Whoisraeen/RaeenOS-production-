@@ -5,9 +5,9 @@
 
 #include "../ui/raeenui.h"
 #include "../ui/desktop_shell.h"
-#include "../filesystem/fat32_production.h"
-#include "../memory.h"
-#include "../string.h"
+#include "../kernel/fs/fat32/fat32_production.h"
+#include "../kernel/memory.h"
+#include "string.h"
 
 // File Entry Structure
 typedef struct file_entry {

@@ -1,6 +1,15 @@
 #include "include/stdio.h"
 #include "../kernel/vga.h"
-#include "../kernel/string.h"
+#include "string.h"
+
+// Standard streams (dummy implementations for now)
+static FILE _stdin = {0};
+static FILE _stdout = {0};
+static FILE _stderr = {0};
+
+FILE* stdin = &_stdin;
+FILE* stdout = &_stdout;
+FILE* stderr = &_stderr;
 
 // Basic printf implementation
 int printf(const char* format, ...) {
@@ -35,5 +44,30 @@ int sprintf(char* str, const char* format, ...) {
     int len = vsprintf(str, format, args);
     va_end(args);
     return len;
+}
+
+// Basic fprintf implementation
+int fprintf(FILE* stream, const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+
+    char buffer[256];
+    int len = vsprintf(buffer, format, args);
+    
+    // For now, just output to VGA regardless of stream
+    vga_puts(buffer);
+
+    va_end(args);
+    return len;
+}
+
+// Basic fgets implementation (dummy for now)
+char* fgets(char* str, int num, FILE* stream) {
+    // Dummy implementation - just return NULL for now
+    // In a real implementation, this would read from input
+    (void)str;
+    (void)num;
+    (void)stream;
+    return NULL;
 }
 

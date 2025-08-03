@@ -7,7 +7,7 @@ enable_language(ASM_NASM)
 set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_PROCESSOR x86_64)
 
-set(CMAKE_C_FLAGS "-ffreestanding -O2 -Wall -Wextra")
+set(CMAKE_C_FLAGS "-ffreestanding -O2 -Wall -Wextra -I${CMAKE_SOURCE_DIR}/kernel/include -I${CMAKE_SOURCE_DIR}/libs/libc/include")
 set(CMAKE_ASM_NASM_FLAGS "-f elf64 -g")
 
 file(GLOB_RECURSE KERNEL_SOURCES
@@ -23,7 +23,7 @@ list(FILTER KERNEL_SOURCES EXCLUDE REGEX "${CMAKE_SOURCE_DIR}/kernel_main_basic.
 list(FILTER KERNEL_SOURCES EXCLUDE REGEX "${CMAKE_SOURCE_DIR}/kernel/pmm.c")
 list(FILTER KERNEL_SOURCES EXCLUDE REGEX "${CMAKE_SOURCE_DIR}/kernel/idt_simple.c")
 
-# Add production components explicitly
+# Add production components explicitly  
 set(PRODUCTION_SOURCES
     kernel_main.c
     pmm_production.c

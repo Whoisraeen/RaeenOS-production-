@@ -13,5 +13,5 @@ C_DEFINES =
 
 C_INCLUDES = -I/mnt/d/RaeenOS/security -I/mnt/d/RaeenOS/libs/libc/include
 
-C_FLAGS = -ffreestanding -O2 -Wall -Wextra
+C_FLAGS = -ffreestanding -O2 -Wall -Wextra -I/mnt/d/RaeenOS/kernel/include -I/mnt/d/RaeenOS/libs/libc/include
 

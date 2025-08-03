@@ -100,7 +100,7 @@ static init_step_t init_steps[] = {
  * Kernel main entry point
  * Called from boot loader with multiboot information
  */
-void kernel_main(uint32_t magic, multiboot_info_t* mboot_info) {
+void kernel_main(uint64_t magic, multiboot_info_t* mboot_info) {
     // Initialize VGA console first for output
     vga_init();
     vga_clear();
