@@ -9,14 +9,14 @@
  * @date 2025-08-02
  */
 
-#include "kernel/vga.h"
-#include "kernel/string.h"
-#include "kernel/memory.h"
-#include "kernel/idt.h"
-#include "kernel/gdt.h" 
-#include "kernel/keyboard.h"
-#include "kernel/pic.h"
-#include "kernel/ports.h"
+#include "vga.h"
+#include "libs/libc/include/string.h"
+#include "memory.h"
+#include "idt.h"
+#include "gdt.h" 
+#include "keyboard.h"
+#include "pic.h"
+#include "ports.h"
 #include "include/types.h"
 
 // Forward declarations for helper functions

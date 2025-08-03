@@ -876,8 +876,15 @@ static void desktop_shell_handle_gesture(DesktopShell* shell, GestureEvent* gest
  * Update adaptive UI based on AI suggestions
  */
 static void desktop_shell_update_adaptive_ui(DesktopShell* shell) {
+    if (!shell) return;
+    
     // AI-powered adaptive UI updates
     // - Adjust colors based on wallpaper
+    if (shell->wallpaper_cache) {
+        // Analyze wallpaper colors and adjust theme
+        shell->current_theme->accent_color = 0x007ACC; // Example adjustment
+    }
+    
     // - Suggest layout changes based on usage patterns
     // - Automatically organize desktop items
     // - Adjust brightness based on ambient light
@@ -938,9 +945,13 @@ static void desktop_shell_update_performance_stats(DesktopShell* shell) {
     
     frame_count++;
     
+    // Get current time (simplified - would use real timer in production)
+    uint64_t current_time = frame_count; // Placeholder for actual time
+    
     // Update every second (assuming 120 FPS)
-    if (frame_count >= 120) {
+    if (frame_count >= 120 && (current_time - last_update) > 120) {
         shell->average_fps = 120.0f; // Simplified for demo
+        last_update = current_time;
         frame_count = 0;
         
         printf("Desktop Shell: FPS: %.1f, Workspaces: %d, Widgets: %d, Notifications: %d\n",

@@ -32,6 +32,21 @@ bool boot_check_oobe_required(void);
  */
 void boot_handle_error(const char* stage, const char* error);
 
+/**
+ * Enter recovery mode
+ */
+void boot_enter_recovery_mode(void);
+
+/**
+ * Start OOBE (Out-of-Box Experience)
+ */
+void boot_start_oobe(void);
+
+/**
+ * Start desktop environment
+ */
+void boot_start_desktop(void);
+
 #ifdef __cplusplus
 }
 #endif

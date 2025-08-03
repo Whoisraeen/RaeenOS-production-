@@ -17,6 +17,8 @@ file(GLOB_RECURSE KERNEL_SOURCES
 
 list(FILTER KERNEL_SOURCES EXCLUDE REGEX "${CMAKE_SOURCE_DIR}/build_exclude/.*")
 list(FILTER KERNEL_SOURCES EXCLUDE REGEX "${CMAKE_SOURCE_DIR}/build_exclude_drivers/.*")
+# Only exclude template files and build directories  
+list(FILTER KERNEL_SOURCES EXCLUDE REGEX "${CMAKE_SOURCE_DIR}/docs/development-standards/templates/.*")
 
 # Exclude basic versions that are replaced by production components
 list(FILTER KERNEL_SOURCES EXCLUDE REGEX "${CMAKE_SOURCE_DIR}/kernel_main_basic.c")

@@ -12,6 +12,10 @@ void memory_init(void);
 void* kmalloc(size_t size);
 void kfree(void* ptr);
 
+// Aliases for application compatibility
+void* memory_alloc(size_t size);
+void memory_free(void* ptr);
+
 // Placeholder for memory protection functions
 bool memory_protect_range(uintptr_t addr, size_t size, uint32_t flags);
 bool memory_unprotect_range(uintptr_t addr, size_t size);

@@ -11,6 +11,13 @@ static driver_t acpi_driver = {
 
 void acpi_init(void) {
     vga_puts("ACPI driver initialized (placeholder).\n");
+    
+    // Use the driver structure to avoid unused variable warning
+    (void)acpi_driver;
+    
+    // Register the ACPI driver with the driver framework
+    // driver_register(&acpi_driver);  // Commented out until driver framework is fully implemented
+    
     // In a real implementation, this would involve finding the RSDP,
     // parsing ACPI tables (RSDT, XSDT, FADT, DSDT, etc.), and initializing
     // ACPI-related hardware.

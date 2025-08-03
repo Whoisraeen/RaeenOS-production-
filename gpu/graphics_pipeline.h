@@ -21,6 +21,11 @@ typedef unsigned long size_t;
 typedef struct { int __dummy; } pthread_mutex_t;
 #endif
 
+#ifndef _PTHREAD_COND_T_DEFINED
+#define _PTHREAD_COND_T_DEFINED
+typedef struct { int __dummy; } pthread_cond_t;
+#endif
+
 // Forward declarations
 typedef struct VkInstance_T* VkInstance;
 typedef struct VkDevice_T* VkDevice;

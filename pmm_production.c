@@ -275,7 +275,7 @@ int pmm_init_numa(void) {
     // In a real implementation, we would parse ACPI SRAT tables
     
     pmm->nr_nodes = 1;
-    numa_node_t* node = &pmm->nodes[0];
+    pmm_numa_node_t* node = &pmm->nodes[0];
     
     node->node_id = 0;
     node->start_pfn = 0;

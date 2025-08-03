@@ -9,9 +9,9 @@
 #include "vga.h"
 #include "string.h"
 #include "memory.h"
-#include "splash.h"
-#include "session.h" 
-#include "oobe.h"
+#include "boot/splash.h"
+#include "boot/session.h" 
+#include "boot/oobe.h"
 #include <stdint.h>
 #include <stdbool.h>
 

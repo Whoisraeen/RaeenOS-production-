@@ -1,7 +1,7 @@
 #ifndef ACPI_H
 #define ACPI_H
 
-#include "include/types.h"
+#include "../../kernel/include/types.h"
 
 // ACPI RSDP (Root System Description Pointer) structure
 typedef struct {

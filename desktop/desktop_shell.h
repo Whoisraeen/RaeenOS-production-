@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <pthread.h>
+#include "../drivers/input/input.h"
 
 // Forward declarations
 typedef struct RaeenCompositor RaeenCompositor;
@@ -37,30 +38,18 @@ typedef enum {
     INPUT_EVENT_TOUCH
 } InputEventType;
 
-// Gesture types
-typedef enum {
-    GESTURE_SWIPE_UP,
-    GESTURE_SWIPE_DOWN,
-    GESTURE_SWIPE_LEFT,
-    GESTURE_SWIPE_RIGHT,
-    GESTURE_PINCH_IN,
-    GESTURE_PINCH_OUT,
-    GESTURE_TAP,
-    GESTURE_DOUBLE_TAP,
-    GESTURE_LONG_PRESS
-} GestureType;
+// Use the comprehensive gesture types from input driver
+typedef input_gesture_type_t GestureType;
 
-// Key codes
-typedef enum {
-    KEY_WINDOWS = 0x5B,
-    KEY_SUPER = 0x5B,
-    KEY_ALT = 0x12,
-    KEY_CTRL = 0x11,
-    KEY_SHIFT = 0x10,
-    KEY_SPACE = 0x20,
-    KEY_TAB = 0x09,
-    KEY_ESCAPE = 0x1B
-} KeyCode;
+// Use the comprehensive key codes from input driver
+typedef input_key_code_t KeyCode;
+
+// Convenience aliases for desktop shell specific keys
+#define DESKTOP_KEY_WINDOWS KEY_LEFTMETA
+#define DESKTOP_KEY_SUPER KEY_LEFTMETA
+#define DESKTOP_KEY_ALT KEY_LEFTALT
+#define DESKTOP_KEY_CTRL KEY_LEFTCTRL
+#define DESKTOP_KEY_SHIFT KEY_LEFTSHIFT
 
 // Animation quality levels
 typedef enum {

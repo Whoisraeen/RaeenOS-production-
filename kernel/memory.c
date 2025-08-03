@@ -132,4 +132,26 @@ bool memory_unprotect_range(uintptr_t addr, size_t size) {
 }
 
 // Placeholder for ASLR (Address Space Layout Randomization)
-void memory_enable_aslr(void) {    debug_print("Memory: Enabling ASLR (basic implementation).");    // In a real implementation, this would involve randomizing base addresses    // for kernel and userland components during boot/load time.    // For now, this function serves as an entry point.}uintptr_t memory_get_random_offset(uintptr_t range) {    // Very basic pseudo-random number generator for demonstration.    // In a real system, this would use a high-quality entropy source.    static uint32_t seed = 123456789; // Initial seed    seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF; // LCG    return (uintptr_t)(seed % range);}
+void memory_enable_aslr(void) {
+    debug_print("Memory: Enabling ASLR (basic implementation).");
+    // In a real implementation, this would involve randomizing base addresses
+    // for kernel and userland components during boot/load time.
+    // For now, this function serves as an entry point.
+}
+
+uintptr_t memory_get_random_offset(uintptr_t range) {
+    // Very basic pseudo-random number generator for demonstration.
+    // In a real system, this would use a high-quality entropy source.
+    static uint32_t seed = 123456789; // Initial seed
+    seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF; // LCG
+    return (uintptr_t)(seed % range);
+}
+
+// Aliases for application compatibility
+void* memory_alloc(size_t size) {
+    return kmalloc(size);
+}
+
+void memory_free(void* ptr) {
+    kfree(ptr);
+}

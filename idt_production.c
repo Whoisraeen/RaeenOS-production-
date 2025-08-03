@@ -16,16 +16,24 @@
 #include "vga.h"
 #include "string.h"
 
-// IDT entry structure (x86-64)
-typedef struct idt_entry {
-    uint16_t offset_low;    // Offset bits 0-15
-    uint16_t selector;      // Code segment selector
-    uint8_t ist;           // Interrupt Stack Table offset
-    uint8_t type_attr;     // Type and attributes
-    uint16_t offset_mid;   // Offset bits 16-31
-    uint32_t offset_high;  // Offset bits 32-63
-    uint32_t reserved;     // Reserved
-} __attribute__((packed)) idt_entry_t;
+// Forward declarations for utility functions
+void uint64_to_string(uint64_t value, char* buffer, size_t buffer_size);
+void uint64_to_hex_string(uint64_t value, char* buffer, size_t buffer_size);
+
+// Use existing idt_entry_t from idt.h - just add field name mapping
+#define offset_low base_low
+#define selector sel  
+#define type_attr flags
+#define offset_mid base_mid
+#define offset_high base_high
+
+// IDT statistics structure for external API
+struct idt_stats {
+    uint64_t total_interrupts;
+    uint64_t spurious_interrupts;
+    uint64_t exception_counts[32];
+    uint64_t irq_counts[224];
+};
 
 // IDT descriptor
 typedef struct idt_descriptor {
@@ -165,7 +173,7 @@ extern void irq1(void);   // Keyboard
 /**
  * Initialize the Interrupt Descriptor Table
  */
-int idt_init(void) {
+void idt_init(void) {
     vga_puts("IDT: Initializing production interrupt descriptor table...\n");
     
     // Clear IDT manager structure
@@ -241,7 +249,6 @@ int idt_init(void) {
     idt->initialized = true;
     
     vga_puts("IDT: Interrupt descriptor table initialized successfully\n");
-    return 0;
 }
 
 /**
@@ -316,10 +323,10 @@ void idt_common_handler(exception_frame_t* frame) {
         // Send EOI to PIC
         if (interrupt_num >= IRQ_BASE + 8) {
             // Secondary PIC
-            __asm__ volatile("outb %0, %1" :: "a"(0x20), "Nd"(0xA0));
+            __asm__ volatile("outb %%al, %0" :: "N"(0xA0), "a"(0x20));
         }
         // Primary PIC
-        __asm__ volatile("outb %0, %1" :: "a"(0x20), "Nd"(0x20));
+        __asm__ volatile("outb %%al, %0" :: "N"(0x20), "a"(0x20));
     }
 }
 

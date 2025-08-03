@@ -42,8 +42,8 @@ typedef struct mutex mutex_t;
 typedef struct semaphore semaphore_t;
 typedef struct rwlock rwlock_t;
 
-// Atomic types
-typedef _Atomic int atomic_t;
+// Atomic types - use the atomic_t from types.h for consistency
+// atomic_t is already defined in types.h
 typedef _Atomic long atomic64_t;
 
 // Spinlock structure

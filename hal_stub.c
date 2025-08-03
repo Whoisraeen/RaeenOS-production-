@@ -9,8 +9,8 @@
  * @date 2025-07-31
  */
 
-#include "include/hal_interface.h"
-#include "include/types.h"
+#include "kernel/include/hal_interface.h"
+#include "kernel/include/types.h"
 
 // Include production HAL components
 extern int hal_init(void);

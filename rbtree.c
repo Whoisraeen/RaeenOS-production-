@@ -10,7 +10,7 @@
  */
 
 #include "include/sync.h"
-#include "types.h"
+#include "include/types.h"
 
 // Red-black tree color definitions
 #define RB_RED    0

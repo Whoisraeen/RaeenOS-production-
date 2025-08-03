@@ -153,3 +153,78 @@ int memcmp(const void* s1, const void* s2, size_t n) {
     }
     return 0;
 }
+
+// Additional string functions required by RaeenOS applications
+
+// memory_set - alias for memset
+void* memory_set(void* s, int c, size_t n) {
+    return memset(s, c, n);
+}
+
+// string_copy - safe string copy with size limit
+void string_copy(char* dest, const char* src, size_t dest_size) {
+    if (dest_size == 0) return;
+    strncpy(dest, src, dest_size - 1);
+    dest[dest_size - 1] = '\0';
+}
+
+// string_compare - alias for strcmp
+int string_compare(const char* s1, const char* s2) {
+    return strcmp(s1, s2);
+}
+
+// string_find_last - find last occurrence of character
+char* string_find_last(char* str, char c) {
+    char* last = NULL;
+    while (*str) {
+        if (*str == c) {
+            last = str;
+        }
+        str++;
+    }
+    return last;
+}
+
+// string_ends_with - check if string ends with suffix
+bool string_ends_with(const char* str, const char* suffix) {
+    if (!str || !suffix) return false;
+    
+    size_t str_len = strlen(str);
+    size_t suffix_len = strlen(suffix);
+    
+    if (suffix_len > str_len) return false;
+    
+    return strcmp(str + str_len - suffix_len, suffix) == 0;
+}
+
+// string_duplicate - duplicate string (basic implementation)
+char* string_duplicate(const char* str) {
+    if (!str) return NULL;
+    
+    size_t len = strlen(str);
+    // NOTE: This is a placeholder - in a real OS we'd need proper malloc
+    // For now, return NULL to avoid crashes
+    return NULL;
+}
+
+// string_format - simple sprintf-like formatting (basic implementation)
+void string_format(char* dest, size_t dest_size, const char* format, ...) {
+    if (!dest || dest_size == 0) return;
+    
+    // Very basic implementation - just handle %s for now
+    const char* src = format;
+    char* dst = dest;
+    size_t remaining = dest_size - 1;
+    
+    while (*src && remaining > 0) {
+        if (*src == '%' && *(src + 1) == 's') {
+            // Simple %s replacement - this is very basic
+            src += 2; // skip %s
+            // For now, just skip the %s - a real implementation would use va_args
+        } else {
+            *dst++ = *src++;
+            remaining--;
+        }
+    }
+    *dst = '\0';
+}

@@ -38,7 +38,7 @@ void window_manager_init(void);
  * @param height The height of the window.
  * @return window_t* A pointer to the newly created window, or NULL on failure.
  */
-window_t* window_create(int x, int y, int width, int height);
+window_t* window_create(int x, int y, int width, int height, const char* title);
 
 /**
  * @brief Draws the entire desktop, composing all windows onto the screen.

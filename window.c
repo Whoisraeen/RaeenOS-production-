@@ -36,7 +36,7 @@ window_t* window_create(int x, int y, int width, int height, const char* title) 
     
     size_t buffer_size = width * height * sizeof(uint32_t);
     size_t num_pages = (buffer_size + PAGE_SIZE - 1) / PAGE_SIZE;
-    win->buffer = (uint32_t*)pmm_alloc_frames(num_pages);
+    win->buffer = (uint32_t*)pmm_alloc_pages(0, 0, -1); // order=0 (1 page), flags=0, node=-1 (any)
     
     if (!win->buffer) {
         pmm_free_frame((void*)win);
@@ -101,17 +101,6 @@ void window_draw_char(window_t* win, int x, int y, char c, uint32_t color) {
 /**
  * @brief Draws a string into a window's buffer.
  */
-void window_draw_string(window_t* win, int x, int y, const char* str, uint32_t color) {
-    if (!win || !str) return;
-
-    int current_x = x;
-    while (*str) {
-        window_draw_char(win, current_x, y, *str, color);
-        current_x += FONT_WIDTH;
-        str++;
-    }
-}
-
 void window_draw_string(window_t* win, int x, int y, const char* str, uint32_t color) {
     if (!win || !str) return;
 

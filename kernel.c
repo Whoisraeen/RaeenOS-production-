@@ -5,7 +5,17 @@
 #include "pmm.h"
 #include "include/multiboot.h"
 #include "include/driver.h"
-#include "../drivers/pci/pci_driver.h"
+// #include "../drivers/pci/pci_driver.h"  // Temporarily disabled due to driver_t conflicts
+
+// Missing type definitions 
+typedef struct page_directory page_directory_t;
+struct registers_t {
+    uint64_t rax, rbx, rcx, rdx, rsi, rdi, rbp, rsp;
+    uint64_t r8, r9, r10, r11, r12, r13, r14, r15;
+    uint64_t rip, rflags, cs, ss;
+};
+typedef struct registers_t registers_t;
+#define ATA_MASTER 0  // Placeholder definition
 
 #include "string.h"
 #include "syscall.h"
@@ -77,7 +87,7 @@ void kernel_early_init(uint32_t magic, uint32_t mboot_ptr) {
     swap_init(); // Initialize swap mechanism
 }
 
-void kernel_late_init(void) {
+void kernel_late_init(multiboot_info_t* mboot_info) {
     ata_init(); // Initialize ATA driver
     theme_init(); // Initialize theming engine
     syscall_init();
@@ -91,8 +101,8 @@ void kernel_late_init(void) {
         vga_puts("Failed to mount FAT32 filesystem!\n");
     }
 
-    pci_driver_init(); // Initialize PCI bus driver
-    pci_enumerate_devices(); // Enumerate PCI devices and initialize their drivers
+    // pci_driver_init(); // Initialize PCI bus driver - disabled due to conflicts
+    // pci_enumerate_devices(); // Enumerate PCI devices and initialize their drivers
 
     timer_init(100); // 100 Hz
     keyboard_init();
@@ -102,6 +112,7 @@ void kernel_late_init(void) {
     process_init();
 }
 
+void kernel_main(void) {
     // VFS Test
     vfs_node_t* dev_dir = vfs_create(vfs_root, "dev", VFS_DIRECTORY);
     if (dev_dir) {
@@ -229,7 +240,7 @@ void kernel_late_init(void) {
     }
 
     // Enable interrupts
-    asm volatile ("sti");
+    __asm__ volatile("sti");
 
     // Main event loop for UI interaction
     struct mouse_state_t current_mouse;

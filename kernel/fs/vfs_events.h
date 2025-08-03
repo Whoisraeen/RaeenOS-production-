@@ -20,7 +20,7 @@
 #define VFS_EVENTS_H
 
 #ifndef __KERNEL__
-#include "include/types.h"
+#include "../include/types.h"
 // Using types.h for kernel build
 #else
 // Kernel mode - use our own type definitions

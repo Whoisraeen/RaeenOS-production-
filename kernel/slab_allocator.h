@@ -19,10 +19,7 @@
  */
 
 #include "include/types.h"
-// Using types.h for kernel build
-// Using types.h for kernel build
-#include "types.h"
-#include "memory_interface.h"
+#include "include/memory_interface.h"
 #include "pmm_production.h"
 
 #ifdef __cplusplus

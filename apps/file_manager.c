@@ -7,7 +7,11 @@
 #include "../ui/desktop_shell.h"
 #include "../kernel/fs/fat32/fat32_production.h"
 #include "../kernel/memory.h"
-#include "string.h"
+#include "../libs/libc/include/stdio.h"
+#include "../libs/libc/include/string.h"
+
+// Macro to suppress unused parameter warnings
+#define UNUSED(x) ((void)(x))
 
 // File Entry Structure
 typedef struct file_entry {
@@ -65,6 +69,8 @@ static RaeenUIView* file_manager_create_file_item(file_entry_t* file);
  * Launch file manager application
  */
 int file_manager_main(int argc, char* argv[]) {
+    UNUSED(argc);
+    UNUSED(argv);
     printf("File Manager: Starting application...\n");
     
     if (!file_manager_init()) {
@@ -364,6 +370,7 @@ static void file_manager_add_to_history(const char* path) {
 // Event handlers
 
 static void file_manager_handle_file_click(RaeenUIView* view, void* user_data) {
+    UNUSED(view);
     file_entry_t* file = (file_entry_t*)user_data;
     file_manager_t* fm = &g_file_manager;
     
@@ -390,6 +397,8 @@ static void file_manager_handle_file_click(RaeenUIView* view, void* user_data) {
 }
 
 static void file_manager_handle_back_button(RaeenUIView* view, void* user_data) {
+    UNUSED(view);
+    UNUSED(user_data);
     file_manager_t* fm = &g_file_manager;
     
     if (fm->history_index > 0) {
@@ -399,6 +408,8 @@ static void file_manager_handle_back_button(RaeenUIView* view, void* user_data) 
 }
 
 static void file_manager_handle_forward_button(RaeenUIView* view, void* user_data) {
+    UNUSED(view);
+    UNUSED(user_data);
     file_manager_t* fm = &g_file_manager;
     
     if (fm->history_index < fm->history_count - 1) {
@@ -408,6 +419,8 @@ static void file_manager_handle_forward_button(RaeenUIView* view, void* user_dat
 }
 
 static void file_manager_handle_up_button(RaeenUIView* view, void* user_data) {
+    UNUSED(view);
+    UNUSED(user_data);
     file_manager_t* fm = &g_file_manager;
     
     // Navigate to parent directory
@@ -424,6 +437,8 @@ static void file_manager_handle_up_button(RaeenUIView* view, void* user_data) {
 }
 
 static void file_manager_handle_new_folder(RaeenUIView* view, void* user_data) {
+    UNUSED(view);
+    UNUSED(user_data);
     file_manager_t* fm = &g_file_manager;
     
     // Create new folder dialog (simplified)
@@ -441,6 +456,8 @@ static void file_manager_handle_new_folder(RaeenUIView* view, void* user_data) {
 }
 
 static void file_manager_handle_delete_file(RaeenUIView* view, void* user_data) {
+    UNUSED(view);
+    UNUSED(user_data);
     file_manager_t* fm = &g_file_manager;
     
     if (!fm->selected_file) return;

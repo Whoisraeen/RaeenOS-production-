@@ -21,4 +21,13 @@ void* memcpy(void* dest, const void* src, size_t n);
 void* memset(void* s, int c, size_t n);
 int memcmp(const void* s1, const void* s2, size_t n);
 
+// Additional RaeenOS string functions
+void* memory_set(void* s, int c, size_t n);
+void string_copy(char* dest, const char* src, size_t dest_size);
+int string_compare(const char* s1, const char* s2);
+char* string_find_last(char* str, char c);
+bool string_ends_with(const char* str, const char* suffix);
+char* string_duplicate(const char* str);
+void string_format(char* dest, size_t dest_size, const char* format, ...);
+
 #endif // KERNEL_STRING_H

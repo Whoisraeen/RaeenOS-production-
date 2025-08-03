@@ -15,6 +15,11 @@
 #include "include/sync.h"
 #include "include/types.h"
 #include "include/errno.h"
+// Use list functions from sync.h instead
+#define list_for_each_entry(pos, head, member)                \
+    for (pos = list_entry((head)->next, typeof(*pos), member);    \
+         &pos->member != (head);                    \
+         pos = list_entry(pos->member.next, typeof(*pos), member))
 #include "string.h"
 #include "vga.h"
 
@@ -24,10 +29,10 @@ static const size_t slab_sizes[] = {
 };
 #define NUM_SLAB_SIZES (sizeof(slab_sizes) / sizeof(slab_sizes[0]))
 
-// Slab cache structure
-typedef struct slab_cache {
-    const char* name;               // Cache name
-    size_t object_size;             // Size of each object
+// Use different name to avoid conflict with memory_interface.h
+typedef struct kernel_slab_cache {
+    char name[64];                  // Cache name
+    size_t object_size;             // Object size
     size_t align;                   // Alignment requirement
     uint32_t flags;                 // Cache flags
     
@@ -35,7 +40,7 @@ typedef struct slab_cache {
     void (*ctor)(void* obj);
     void (*dtor)(void* obj);
     
-    // Slabs lists
+    // Slab lists
     struct list_head full_slabs;    // Completely allocated slabs
     struct list_head partial_slabs; // Partially allocated slabs
     struct list_head empty_slabs;   // Empty slabs
@@ -51,13 +56,13 @@ typedef struct slab_cache {
     spinlock_t lock;
     
     // Next cache in global list
-    struct slab_cache* next;
-} slab_cache_t;
+    struct kernel_slab_cache* next;
+} kernel_slab_cache_t;
 
 // Individual slab structure
 typedef struct slab {
     struct list_head list;          // List linkage
-    slab_cache_t* cache;           // Parent cache
+    kernel_slab_cache_t* cache;           // Parent cache
     void* objects;                 // Start of objects
     uint32_t free_count;           // Number of free objects
     uint32_t objects_per_slab;     // Total objects in this slab
@@ -75,18 +80,18 @@ typedef struct heap_manager {
     bool initialized;
     
     // General-purpose slab caches
-    slab_cache_t* general_caches[NUM_SLAB_SIZES];
+    kernel_slab_cache_t* general_caches[NUM_SLAB_SIZES];
     
     // Special-purpose caches
-    slab_cache_t* cache_cache;      // Cache for cache descriptors
-    slab_cache_t* slab_cache;       // Cache for slab descriptors
+    kernel_slab_cache_t* cache_cache;      // Cache for cache descriptors
+    kernel_slab_cache_t* slab_cache;       // Cache for slab descriptors
     
     // Large allocation tracking
     struct list_head large_allocs;
     spinlock_t large_alloc_lock;
     
     // Global cache list
-    slab_cache_t* cache_list;
+    kernel_slab_cache_t* cache_list;
     spinlock_t cache_list_lock;
     
     // Statistics
@@ -128,16 +133,59 @@ static heap_manager_t heap_manager;
 static heap_manager_t* heap = &heap_manager;
 
 // Forward declarations
-static slab_cache_t* create_slab_cache(const char* name, size_t size, size_t align, 
+static kernel_slab_cache_t* create_slab_cache(const char* name, size_t size, size_t align, 
                                        uint32_t flags, void (*ctor)(void*), void (*dtor)(void*));
-static void destroy_slab_cache(slab_cache_t* cache);
-static void* slab_alloc_from_cache(slab_cache_t* cache, uint32_t flags);
-static void slab_free_to_cache(slab_cache_t* cache, void* obj);
-static slab_t* create_slab(slab_cache_t* cache);
+static void destroy_slab_cache(kernel_slab_cache_t* cache);
+static void* slab_alloc_from_cache(kernel_slab_cache_t* cache, uint32_t flags);
+static void slab_free_to_cache(kernel_slab_cache_t* cache, void* obj);
+static slab_t* create_slab(kernel_slab_cache_t* cache);
 static void destroy_slab(slab_t* slab);
 static void* large_alloc(size_t size, uint32_t flags);
 static void large_free(void* ptr);
 static size_t find_slab_size(size_t size);
+
+/**
+ * Simple string formatter for cache names
+ */
+static int simple_sprintf(char* buf, size_t size, const char* prefix, size_t number) {
+    if (!buf || !prefix || size == 0) return 0;
+    
+    // Copy prefix
+    size_t prefix_len = strlen(prefix);
+    if (prefix_len >= size) prefix_len = size - 1;
+    
+    memcpy(buf, prefix, prefix_len);
+    
+    // Convert number to string (simple implementation)
+    char num_str[32];
+    int num_len = 0;
+    size_t temp = number;
+    
+    if (temp == 0) {
+        num_str[0] = '0';
+        num_len = 1;
+    } else {
+        while (temp > 0) {
+            num_str[num_len++] = '0' + (temp % 10);
+            temp /= 10;
+        }
+        // Reverse the digits
+        for (int i = 0; i < num_len / 2; i++) {
+            char c = num_str[i];
+            num_str[i] = num_str[num_len - 1 - i];
+            num_str[num_len - 1 - i] = c;
+        }
+    }
+    
+    // Append number to buffer
+    size_t remaining = size - prefix_len - 1;
+    if ((size_t)num_len > remaining) num_len = remaining;
+    
+    memcpy(buf + prefix_len, num_str, num_len);
+    buf[prefix_len + num_len] = '\0';
+    
+    return prefix_len + num_len;
+}
 
 /**
  * Initialize the kernel heap manager
@@ -162,7 +210,7 @@ int heap_init(void) {
     heap->config.leak_detection = true;
     
     // Create cache for cache descriptors
-    heap->cache_cache = create_slab_cache("cache_cache", sizeof(slab_cache_t), 
+    heap->cache_cache = create_slab_cache("cache_cache", sizeof(kernel_slab_cache_t), 
                                          sizeof(void*), 0, NULL, NULL);
     if (!heap->cache_cache) {
         vga_puts("HEAP: Failed to create cache cache\n");
@@ -180,7 +228,7 @@ int heap_init(void) {
     // Create general-purpose caches
     for (int i = 0; i < NUM_SLAB_SIZES; i++) {
         char name[32];
-        snprintf(name, sizeof(name), "kmalloc-%zu", slab_sizes[i]);
+        simple_sprintf(name, sizeof(name), "kmalloc-", slab_sizes[i]);
         
         heap->general_caches[i] = create_slab_cache(name, slab_sizes[i], 
                                                    sizeof(void*), 0, NULL, NULL);
@@ -266,7 +314,7 @@ void kfree(void* ptr) {
     // Find which slab this belongs to
     // This is simplified - in production we'd use more efficient lookup
     for (int i = 0; i < NUM_SLAB_SIZES; i++) {
-        slab_cache_t* cache = heap->general_caches[i];
+        kernel_slab_cache_t* cache = heap->general_caches[i];
         
         // Check if pointer could belong to this cache
         // This is a simplified check
@@ -322,28 +370,28 @@ void* krealloc(void* ptr, size_t new_size, uint32_t flags) {
 /**
  * Create a new slab cache
  */
-static slab_cache_t* create_slab_cache(const char* name, size_t size, size_t align, 
+static kernel_slab_cache_t* create_slab_cache(const char* name, size_t size, size_t align, 
                                        uint32_t flags, void (*ctor)(void*), void (*dtor)(void*)) {
-    slab_cache_t* cache;
+    kernel_slab_cache_t* cache;
     
     // Allocate cache descriptor
     if (heap->cache_cache) {
-        cache = (slab_cache_t*)slab_alloc_from_cache(heap->cache_cache, GFP_KERNEL);
+        cache = (kernel_slab_cache_t*)slab_alloc_from_cache(heap->cache_cache, GFP_KERNEL);
     } else {
         // Bootstrap allocation
         void* page = pmm_alloc_page(GFP_KERNEL, -1);
         if (!page) return NULL;
-        cache = (slab_cache_t*)page;
+        cache = (kernel_slab_cache_t*)page;
     }
     
     if (!cache) {
         return NULL;
     }
     
-    memset(cache, 0, sizeof(slab_cache_t));
+    memset(cache, 0, sizeof(kernel_slab_cache_t));
     
     // Initialize cache
-    cache->name = name;
+    strcpy(cache->name, name);
     cache->object_size = size;
     cache->align = align ? align : sizeof(void*);
     cache->flags = flags;
@@ -371,7 +419,7 @@ static slab_cache_t* create_slab_cache(const char* name, size_t size, size_t ali
 /**
  * Allocate object from slab cache
  */
-static void* slab_alloc_from_cache(slab_cache_t* cache, uint32_t flags) {
+static void* slab_alloc_from_cache(kernel_slab_cache_t* cache, uint32_t flags) {
     if (!cache) {
         return NULL;
     }
@@ -430,7 +478,7 @@ static void* slab_alloc_from_cache(slab_cache_t* cache, uint32_t flags) {
 /**
  * Free object to slab cache
  */
-static void slab_free_to_cache(slab_cache_t* cache, void* obj) {
+static void slab_free_to_cache(kernel_slab_cache_t* cache, void* obj) {
     if (!cache || !obj) {
         return;
     }
@@ -491,7 +539,7 @@ static void slab_free_to_cache(slab_cache_t* cache, void* obj) {
 /**
  * Create a new slab for cache
  */
-static slab_t* create_slab(slab_cache_t* cache) {
+static slab_t* create_slab(kernel_slab_cache_t* cache) {
     if (!cache) {
         return NULL;
     }
@@ -620,23 +668,6 @@ static size_t find_slab_size(size_t size) {
         }
     }
     return 0;  // Too large for slab allocation
-}
-
-/**
- * Simple snprintf implementation for cache names
- */
-int snprintf(char* buf, size_t size, const char* fmt, ...) {
-    // Very simple implementation - just copy format string
-    // In production, this would be a full printf implementation
-    if (!buf || !fmt || size == 0) return 0;
-    
-    size_t len = strlen(fmt);
-    if (len >= size) len = size - 1;
-    
-    memcpy(buf, fmt, len);
-    buf[len] = '\0';
-    
-    return len;
 }
 
 /**

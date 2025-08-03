@@ -12,11 +12,11 @@
 
 #include "vmm_production.h"
 #include "pmm_production.h"
-#include "memory_interface.h"
-#include "hal_interface.h"
-#include "types.h"
-#include "errno.h"
-#include "string.h"
+#include "kernel/include/memory_interface.h"
+#include "kernel/include/hal_interface.h"
+#include "include/types.h"
+#include "include/errno.h"
+#include "libs/libc/include/string.h"
 #include "vga.h"
 
 // Forward declarations

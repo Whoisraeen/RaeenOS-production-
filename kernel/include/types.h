@@ -231,6 +231,9 @@ struct flock {
 #endif
 
 // Atomic operations type
+#ifndef ATOMIC_T_DEFINED  
+#define ATOMIC_T_DEFINED
 typedef volatile uint32_t atomic_t;
+#endif
 
 #endif

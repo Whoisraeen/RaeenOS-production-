@@ -9,11 +9,11 @@
  * @date 2025-08-01
  */
 
-#include "kernel/vga.h"
-#include "kernel/string.h"
-#include "kernel/memory.h"
-#include "kernel/idt.h"
-#include "kernel/gdt.h"
+#include "vga.h"
+#include "libs/libc/include/string.h"
+#include "memory.h"
+#include "idt.h"
+#include "gdt.h"
 #include "include/types.h"
 
 // External functions we need

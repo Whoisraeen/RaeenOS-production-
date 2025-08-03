@@ -24,9 +24,11 @@
 
 // External functions
 extern int heap_init(void);
-extern int idt_init(void);
+extern void idt_init(void);
+extern void idt_cleanup(void);
 extern void idt_enable_interrupts(void);
 extern void boot_orchestrator_main(void);
+extern void uint64_to_string(uint64_t value, char* buffer, size_t buffer_size);
 
 // Kernel version information
 #define KERNEL_VERSION "1.0.0"
@@ -69,6 +71,33 @@ typedef struct init_step {
 static boot_info_t boot_info;
 static init_phase_t current_phase = INIT_PHASE_EARLY;
 
+// Wrapper functions for init table compatibility
+static int idt_init_wrapper(void) {
+    idt_init();
+    return 0;
+}
+
+static int idt_cleanup_wrapper(void) {
+    idt_cleanup();
+    return 0;
+}
+
+static int pmm_init_wrapper(void) {
+    // PMM expects multiboot info, use stored boot_info
+    pmm_init(boot_info.memory_lower, boot_info.memory_upper);
+    return 0;
+}
+
+static int pmm_cleanup_wrapper(void) {
+    pmm_cleanup();
+    return 0;
+}
+
+static int vmm_cleanup_wrapper(void) {
+    vmm_cleanup();
+    return 0;
+}
+
 // Forward declarations
 static int parse_multiboot_info(multiboot_info_t* mboot_info);
 static void print_kernel_banner(void);
@@ -84,12 +113,12 @@ static init_step_t init_steps[] = {
     {"Boot Info Parsing", NULL, NULL, true, false, INIT_PHASE_EARLY},
     
     // Memory management
-    {"Physical Memory Manager", pmm_init, pmm_cleanup, true, false, INIT_PHASE_MEMORY},
-    {"Virtual Memory Manager", vmm_init, vmm_cleanup, true, false, INIT_PHASE_MEMORY},
+    {"Physical Memory Manager", pmm_init_wrapper, pmm_cleanup_wrapper, true, false, INIT_PHASE_MEMORY},
+    {"Virtual Memory Manager", vmm_init, vmm_cleanup_wrapper, true, false, INIT_PHASE_MEMORY},
     {"Kernel Heap", heap_init, NULL, true, false, INIT_PHASE_MEMORY},
     
     // Interrupt handling
-    {"Interrupt Descriptor Table", idt_init, idt_cleanup, true, false, INIT_PHASE_INTERRUPTS},
+    {"Interrupt Descriptor Table", idt_init_wrapper, idt_cleanup_wrapper, true, false, INIT_PHASE_INTERRUPTS},
     
     // Additional phases would be added here in a complete implementation
     
@@ -244,19 +273,7 @@ static int run_initialization_phase(init_phase_t phase) {
         
         int result = 0;
         if (step->init_func) {
-            // Call initialization function with multiboot info if needed
-            if (step->phase == INIT_PHASE_MEMORY && 
-                (step->init_func == pmm_init || step->init_func == (int(*)(void))pmm_init)) {
-                // PMM needs memory map information
-                multiboot_info_t* mboot = boot_info.mboot_info;
-                if (mboot && (mboot->flags & 0x40)) {  // Memory map flag
-                    result = pmm_init(mboot->mmap_addr, mboot->mmap_length);
-                } else {
-                    result = -EINVAL;
-                }
-            } else {
-                result = step->init_func();
-            }
+            result = step->init_func();
         }
         
         if (result == 0) {
@@ -407,5 +424,4 @@ init_phase_t kernel_get_init_phase(void) {
     return current_phase;
 }
 
-// Import string utility functions
-extern void uint64_to_string(uint64_t value, char* buffer, size_t buffer_size);
+// String utility functions declared above
