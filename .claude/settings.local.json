@@ -22,7 +22,8 @@
       "Bash(qemu-system-x86_64:*)",
       "Bash(objdump:*)",
       "Bash(python3:*)",
-      "Bash(grub-file:*)"
+      "Bash(grub-file:*)",
+      "Bash(cmake:*)"
     ],
     "deny": []
   }

@@ -1,0 +1,4 @@
+/mnt/d/RaeenOS/build/CMakeFiles/raeenos.elf.dir
+/mnt/d/RaeenOS/build/CMakeFiles/raeshell.dir
+/mnt/d/RaeenOS/build/CMakeFiles/edit_cache.dir
+/mnt/d/RaeenOS/build/CMakeFiles/rebuild_cache.dir

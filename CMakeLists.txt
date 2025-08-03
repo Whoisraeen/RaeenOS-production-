@@ -18,13 +18,30 @@ file(GLOB_RECURSE KERNEL_SOURCES
 list(FILTER KERNEL_SOURCES EXCLUDE REGEX "${CMAKE_SOURCE_DIR}/build_exclude/.*")
 list(FILTER KERNEL_SOURCES EXCLUDE REGEX "${CMAKE_SOURCE_DIR}/build_exclude_drivers/.*")
 
+# Exclude basic versions that are replaced by production components
+list(FILTER KERNEL_SOURCES EXCLUDE REGEX "${CMAKE_SOURCE_DIR}/kernel_main_basic.c")
+list(FILTER KERNEL_SOURCES EXCLUDE REGEX "${CMAKE_SOURCE_DIR}/kernel/pmm.c")
+list(FILTER KERNEL_SOURCES EXCLUDE REGEX "${CMAKE_SOURCE_DIR}/kernel/idt_simple.c")
+
+# Add production components explicitly
+set(PRODUCTION_SOURCES
+    kernel_main.c
+    pmm_production.c
+    vmm_production.c 
+    vmm_production_impl.c
+    heap_production.c
+    idt_production.c
+    syscall_production.c
+    boot/boot_orchestrator.c
+)
+
 # Add security framework sources
 file(GLOB_RECURSE SECURITY_SOURCES
     LIST_DIRECTORIES false
     "security/*.c"
 )
 
-set(SOURCES ${KERNEL_SOURCES} ${SECURITY_SOURCES}
+set(SOURCES ${KERNEL_SOURCES} ${SECURITY_SOURCES} ${PRODUCTION_SOURCES}
     kernel/ipc/message_queue.c
     drivers/network/ethernet.c
     kernel/fs/ramfs.c
@@ -74,8 +91,8 @@ target_include_directories(raeenos.elf PRIVATE ${CMAKE_SOURCE_DIR}/security)
 # Add libc include directory
 target_include_directories(raeenos.elf PRIVATE ${CMAKE_SOURCE_DIR}/libs/libc/include)
 
-# Add RaeenUI as a subdirectory
-add_subdirectory(ui)
+# Add RaeenUI as a subdirectory (commented out until UI CMakeLists.txt is available)
+# add_subdirectory(ui)
 
 # Build RaeShell
 add_executable(raeshell userland/raeshell/raeshell.c)
@@ -86,8 +103,8 @@ set_target_properties(raeenos.elf PROPERTIES
 )
 
 link_directories(${CMAKE_SOURCE_DIR}/security)
-link_directories(${CMAKE_SOURCE_DIR}/ui)
-target_link_libraries(raeenos.elf security raeenui)
+# link_directories(${CMAKE_SOURCE_DIR}/ui)
+target_link_libraries(raeenos.elf security)
 
 add_custom_command(
     TARGET raeenos.elf

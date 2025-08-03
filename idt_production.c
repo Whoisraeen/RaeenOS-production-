@@ -16,9 +16,16 @@
 #include "vga.h"
 #include "string.h"
 
-// Use idt_entry_t from idt.h
-// Mapping: offset_low -> base_low, selector -> sel, type_attr -> flags
-//          offset_mid -> base_mid, offset_high -> base_high
+// IDT entry structure (x86-64)
+typedef struct idt_entry {
+    uint16_t offset_low;    // Offset bits 0-15
+    uint16_t selector;      // Code segment selector
+    uint8_t ist;           // Interrupt Stack Table offset
+    uint8_t type_attr;     // Type and attributes
+    uint16_t offset_mid;   // Offset bits 16-31
+    uint32_t offset_high;  // Offset bits 32-63
+    uint32_t reserved;     // Reserved
+} __attribute__((packed)) idt_entry_t;
 
 // IDT descriptor
 typedef struct idt_descriptor {
@@ -37,18 +44,6 @@ typedef struct exception_frame {
 
 // Interrupt handler function type
 typedef void (*interrupt_handler_t)(exception_frame_t* frame);
-
-// IDT statistics structure
-struct idt_stats {
-    uint64_t exception_counts[32];
-    uint64_t irq_counts[224];
-    uint64_t total_interrupts;
-    uint64_t spurious_interrupts;
-};
-
-// Forward declarations
-void uint64_to_string(uint64_t value, char* buffer, size_t buffer_size);
-void uint64_to_hex_string(uint64_t value, char* buffer, size_t buffer_size);
 
 // IDT constants
 #define IDT_ENTRIES 256
@@ -170,7 +165,7 @@ extern void irq1(void);   // Keyboard
 /**
  * Initialize the Interrupt Descriptor Table
  */
-void idt_init(void) {
+int idt_init(void) {
     vga_puts("IDT: Initializing production interrupt descriptor table...\n");
     
     // Clear IDT manager structure
@@ -246,6 +241,7 @@ void idt_init(void) {
     idt->initialized = true;
     
     vga_puts("IDT: Interrupt descriptor table initialized successfully\n");
+    return 0;
 }
 
 /**
@@ -258,12 +254,12 @@ static void idt_set_entry(int index, uint64_t handler, uint16_t selector, uint8_
     
     idt_entry_t* entry = &idt->idt[index];
     
-    entry->base_low = (uint16_t)(handler & 0xFFFF);
-    entry->base_mid = (uint16_t)((handler >> 16) & 0xFFFF);
-    entry->base_high = (uint32_t)((handler >> 32) & 0xFFFFFFFF);
-    entry->sel = selector;
+    entry->offset_low = (uint16_t)(handler & 0xFFFF);
+    entry->offset_mid = (uint16_t)((handler >> 16) & 0xFFFF);
+    entry->offset_high = (uint32_t)((handler >> 32) & 0xFFFFFFFF);
+    entry->selector = selector;
     entry->ist = 0;  // No IST for now
-    entry->flags = type;
+    entry->type_attr = type;
     entry->reserved = 0;
 }
 
@@ -318,13 +314,12 @@ void idt_common_handler(exception_frame_t* frame) {
     // Send EOI for IRQs (simplified)
     if (interrupt_num >= IRQ_BASE && interrupt_num < IRQ_BASE + 16) {
         // Send EOI to PIC
-        uint8_t eoi = 0x20;
         if (interrupt_num >= IRQ_BASE + 8) {
             // Secondary PIC
-            __asm__ volatile("outb %0, %1" :: "a"(eoi), "Nd"((uint16_t)0xA0));
+            __asm__ volatile("outb %0, %1" :: "a"(0x20), "Nd"(0xA0));
         }
         // Primary PIC
-        __asm__ volatile("outb %0, %1" :: "a"(eoi), "Nd"((uint16_t)0x20));
+        __asm__ volatile("outb %0, %1" :: "a"(0x20), "Nd"(0x20));
     }
 }
 

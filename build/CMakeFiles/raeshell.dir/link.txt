@@ -1,0 +1,1 @@
+/usr/bin/cc -ffreestanding -O2 -Wall -Wextra CMakeFiles/raeshell.dir/userland/raeshell/raeshell.c.o -o userland/raeshell 
