@@ -363,6 +363,16 @@ void compositor_destroy_surface(Compositor* compositor, WindowSurface* surface);
 void compositor_resize_surface(Compositor* compositor, WindowSurface* surface, uint32_t width, uint32_t height);
 void compositor_composite_frame(Compositor* compositor);
 
+// Advanced Compositor Features
+bool compositor_enable_high_refresh_rate(Compositor* compositor, uint32_t target_fps);
+bool compositor_enable_hdr(Compositor* compositor, bool hdr10_support);
+bool compositor_enable_advanced_effects(Compositor* compositor, bool glassmorphism, bool neumorphism);
+bool compositor_configure_multi_monitor(Compositor* compositor, uint32_t monitor_count, uint32_t* widths, uint32_t* heights, float* dpi_scales);
+void compositor_enable_gaming_mode(Compositor* compositor, bool enable);
+void compositor_update_adaptive_performance(Compositor* compositor);
+bool compositor_enable_color_accuracy(Compositor* compositor, bool wide_gamut, bool hardware_calibration);
+void compositor_get_performance_stats(Compositor* compositor, double* avg_frame_time, double* current_fps, uint64_t* frames_rendered);
+
 // Performance monitoring
 void graphics_update_performance_stats(GraphicsContext* ctx);
 void graphics_print_performance_stats(GraphicsContext* ctx);
@@ -374,5 +384,19 @@ const char* graphics_api_to_string(GraphicsAPI api);
 const char* gpu_vendor_to_string(GPUVendor vendor);
 bool graphics_is_format_supported(GraphicsContext* ctx, uint32_t format);
 uint32_t graphics_get_format_size(uint32_t format);
+
+// Advanced GPU Performance Optimizations for 120FPS+ Gaming
+bool graphics_enable_variable_refresh_rate(GraphicsContext* ctx, uint32_t min_fps, uint32_t max_fps);
+bool graphics_enable_hdr(GraphicsContext* ctx, bool hdr10_enabled);
+void graphics_optimize_input_latency(GraphicsContext* ctx);
+bool graphics_enable_raytracing(GraphicsContext* ctx);
+bool graphics_enable_mesh_shaders(GraphicsContext* ctx);
+void graphics_optimize_memory_management(GraphicsContext* ctx);
+void graphics_set_desktop_quality_mode(GraphicsContext* ctx);
+void graphics_update_adaptive_quality(GraphicsContext* ctx);
+bool graphics_enable_color_accuracy(GraphicsContext* ctx, bool wide_gamut);
+
+// System integration
+uint64_t get_total_system_memory(void);
 
 #endif // GRAPHICS_PIPELINE_H
