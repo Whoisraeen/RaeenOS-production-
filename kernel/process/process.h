@@ -9,6 +9,16 @@
 #include "../include/types.h"
 #include "../paging.h"
 #include "../fs/vfs.h"
+
+// Forward declarations for types used by processes
+typedef struct page_directory page_directory_t;
+
+// Registers structure for system calls and interrupts
+typedef struct registers_t {
+    uint64_t rax, rbx, rcx, rdx, rsi, rdi, rbp, rsp;
+    uint64_t r8, r9, r10, r11, r12, r13, r14, r15;
+    uint64_t rip, rflags, cs, ss;
+} registers_t;
 #include "../idt.h"
 #include "../memory.h"
 
@@ -71,6 +81,8 @@ typedef struct process {
     uintptr_t esp;                  // Saved ESP for context switching
     uint32_t pending_signals;       // Bitmask of pending signals
     struct registers_t regs;        // Saved registers for system calls and interrupts
+    void* sched_entity;             // Scheduler entity for advanced scheduling
+    void* gaming_context;           // Gaming scheduler context for game processes
 } process_t;
 
 #define NUM_PRIORITY_LEVELS 4

@@ -182,6 +182,11 @@ static inline int atomic_add_return(atomic_t* v, int i) {
     return atomic_fetch_add(v, i) + i;
 }
 
+// atomic_long functions
+static inline void atomic_long_inc(atomic64_t* v) {
+    atomic_fetch_add(v, 1);
+}
+
 static inline int atomic_sub_return(atomic_t* v, int i) {
     return atomic_fetch_sub(v, i) - i;
 }

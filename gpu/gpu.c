@@ -1,9 +1,9 @@
 #include "gpu.h"
 #include "../pci/pci.h"
-#include "../../kernel/vga.h"
-#include "../../kernel/memory.h"
-#include "../../kernel/string.h"
-#include "../../kernel/include/driver.h"
+#include "../kernel/vga.h"
+#include "../kernel/memory.h"
+#include "../libs/libc/include/string.h"
+#include "../kernel/include/driver.h"
 
 // GPU driver structure
 static driver_t gpu_driver = {

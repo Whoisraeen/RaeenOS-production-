@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 // ACPI RSDP (Root System Description Pointer) structure
+#pragma pack(push, 1)
 typedef struct {
     char signature[8];
     uint8_t checksum;
@@ -14,9 +15,11 @@ typedef struct {
     uint64_t xsdt_address;
     uint8_t extended_checksum;
     uint8_t reserved[3];
-} __attribute__((packed)) acpi_rsdp_t;
+} acpi_rsdp_t;
+#pragma pack(pop)
 
 // ACPI SDT Header (System Description Table)
+#pragma pack(push, 1)
 typedef struct {
     char signature[4];
     uint32_t length;
@@ -27,7 +30,8 @@ typedef struct {
     uint32_t oem_revision;
     uint32_t creator_id;
     uint32_t creator_revision;
-} __attribute__((packed)) acpi_sdt_header_t;
+} acpi_sdt_header_t;
+#pragma pack(pop)
 
 // Initialize ACPI driver
 void acpi_init(void);

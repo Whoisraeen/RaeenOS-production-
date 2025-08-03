@@ -21,14 +21,28 @@
 #include "include/types.h"
 #include "include/memory_interface.h"
 #include "pmm_production.h"
+#include "include/sync.h"
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+// Define missing atomic types
+typedef atomic64_t atomic_long_t;
+
+// Use PMM's NUMA node constant
+#define MAX_NUMA_NODES PMM_MAX_NUMA_NODES
+
+// Per-CPU annotation (for static analysis)
+#ifndef __percpu
+#define __percpu
+#endif
+
 // Slab allocator constants
 #define SLAB_MAX_SIZE           8192        // Maximum object size
 #define SLAB_MIN_ALIGN          8           // Minimum alignment
+#define KMALLOC_SHIFT_HIGH      13          // Support up to 8KB objects (2^13)
 #define SLAB_MAX_ALIGN          4096        // Maximum alignment
 #define SLAB_NAME_LEN           32          // Cache name length
 #define SLAB_MAX_CACHES         256         // Maximum number of caches
@@ -406,7 +420,7 @@ size_t ksize(void* ptr);
  * @param node NUMA node ID
  * @return Allocated memory or NULL on failure
  */
-void* kmalloc_node(size_t size, unsigned int flags, int node);
+void* kmalloc_node(size_t size, uint32_t flags, uint32_t node);
 
 /**
  * Allocate zeroed memory on specific NUMA node
@@ -415,7 +429,7 @@ void* kmalloc_node(size_t size, unsigned int flags, int node);
  * @param node NUMA node ID
  * @return Allocated zeroed memory or NULL on failure
  */
-void* kzalloc_node(size_t size, unsigned int flags, int node);
+void* kzalloc_node(size_t size, uint32_t flags, uint32_t node);
 
 // Debug and statistics
 

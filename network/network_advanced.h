@@ -6,7 +6,7 @@
 #ifndef NETWORK_ADVANCED_H
 #define NETWORK_ADVANCED_H
 
-#include "../../kernel/include/types.h"
+#include "../kernel/include/types.h"
 
 // Network byte order conversion
 #define htons(x) ((uint16_t)((((x) & 0xFF) << 8) | (((x) >> 8) & 0xFF)))

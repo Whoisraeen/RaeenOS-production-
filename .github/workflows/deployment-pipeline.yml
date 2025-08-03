@@ -73,20 +73,40 @@ jobs:
         run: |
           deployment_type="${{ steps.determine-type.outputs.deployment-type }}"
           force_deploy="${{ github.event.inputs.force_deploy || 'false' }}"
-          
+
           echo "Deployment type: $deployment_type"
           echo "Force deploy: $force_deploy"
-          
+
           # Check if all required checks have passed
           should_deploy="true"
-          
+
           if [ "$deployment_type" = "production" ] && [ "$force_deploy" != "true" ]; then
             echo "Production deployment requires all checks to pass"
             # In a real implementation, this would check GitHub status API
             # should_deploy="false"
           fi
-          
+
           echo "should-deploy=$should_deploy" >> $GITHUB_OUTPUT
+
+  # Build and test a minimal bootable image
+  build-minimal-boot-test:
+    name: Build Minimal Bootable Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup build environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential nasm qemu-system-x86 xorriso grub-pc-bin mtools
+          # A real setup would install a cross-compiler
+
+      - name: Build Minimal ISO
+        # This uses the new Makefile.minimal for a focused build
+        run: |
+          make -f Makefile.minimal iso
+          echo "Minimal ISO build complete."
 
   # Build multi-platform images
   build-deployment-images:
@@ -117,20 +137,20 @@ jobs:
         run: |
           mkdir -p deployment-package/${{ matrix.target }}
           version="${{ needs.pre-deployment-validation.outputs.version }}"
-          
+
           # Copy built artifacts
           cp build/${{ matrix.target }}-gcc-release/raeenos-${{ matrix.target }}-*.bin \
              deployment-package/${{ matrix.target }}/raeenos-${{ matrix.target }}-${version}.bin
-          
+
           if [ -f "build/${{ matrix.target }}-gcc-release/raeenos-${{ matrix.target }}-*.iso" ]; then
             cp build/${{ matrix.target }}-gcc-release/raeenos-${{ matrix.target }}-*.iso \
                deployment-package/${{ matrix.target }}/raeenos-${{ matrix.target }}-${version}.iso
           fi
-          
+
           # Create checksums
           cd deployment-package/${{ matrix.target }}
           sha256sum * > checksums.sha256
-          
+
           # Create metadata
           cat > metadata.json << EOF
           {
@@ -156,25 +176,25 @@ jobs:
         run: |
           echo "=== Verifying deployment package for ${{ matrix.target }} ==="
           ls -la deployment-package/${{ matrix.target }}/
-          
+
           # Verify checksums
           cd deployment-package/${{ matrix.target }}
           sha256sum -c checksums.sha256
-          
+
           # Basic file validation
           version="${{ needs.pre-deployment-validation.outputs.version }}"
           if [ ! -f "raeenos-${{ matrix.target }}-${version}.bin" ]; then
             echo "Missing kernel image"
             exit 1
           fi
-          
+
           # Verify file sizes
           kernel_size=$(stat -c%s "raeenos-${{ matrix.target }}-${version}.bin")
           if [ $kernel_size -lt 100000 ]; then
             echo "Kernel image too small: $kernel_size bytes"
             exit 1
           fi
-          
+
           echo "✓ Deployment package verified"
 
       - name: Upload deployment artifacts
@@ -213,30 +233,30 @@ jobs:
         run: |
           cat > Dockerfile << 'EOF'
           FROM ubuntu:22.04
-          
+
           # Install QEMU and dependencies
           RUN apt-get update && \
               apt-get install -y qemu-system-x86 qemu-system-arm qemu-system-misc \
               socat expect python3 python3-pip && \
               rm -rf /var/lib/apt/lists/*
-          
+
           # Create raeenos user
           RUN useradd -m -s /bin/bash raeenos
-          
+
           # Copy RaeenOS images
           COPY deployment-package-x86-64/ /opt/raeenos/x86-64/
           COPY deployment-package-arm64/ /opt/raeenos/arm64/
           COPY deployment-package-riscv64/ /opt/raeenos/riscv64/
-          
+
           # Create launcher script
           COPY docker-launcher.sh /usr/local/bin/raeenos-launcher
           RUN chmod +x /usr/local/bin/raeenos-launcher
-          
+
           USER raeenos
           WORKDIR /home/raeenos
-          
+
           EXPOSE 5900 8080
-          
+
           CMD ["/usr/local/bin/raeenos-launcher"]
           EOF
 
@@ -245,13 +265,13 @@ jobs:
           cat > docker-launcher.sh << 'EOF'
           #!/bin/bash
           set -e
-          
+
           ARCH=${RAEENOS_ARCH:-x86-64}
           MEMORY=${RAEENOS_MEMORY:-512M}
           VNC=${RAEENOS_VNC:-0}
-          
+
           echo "Starting RaeenOS $ARCH with $MEMORY memory"
-          
+
           case "$ARCH" in
             "x86-64")
               qemu_system="qemu-system-x86_64"
@@ -272,12 +292,12 @@ jobs:
               exit 1
               ;;
           esac
-          
+
           display_args="-display none"
           if [ "$VNC" = "1" ]; then
             display_args="-vnc 0.0.0.0:0"
           fi
-          
+
           exec $qemu_system \
             $machine_args \
             -m $MEMORY \
@@ -325,13 +345,13 @@ jobs:
       - name: Deploy to staging infrastructure
         run: |
           echo "Deploying to staging servers..."
-          
+
           # In a real implementation, this would:
           # 1. Upload to staging servers
           # 2. Update load balancers
           # 3. Run smoke tests
           # 4. Update monitoring dashboards
-          
+
           for arch in x86-64 arm64 riscv64; do
             echo "Deploying $arch to staging..."
             # rsync deployment-package-$arch/ staging-server:/var/www/raeenos/$arch/
@@ -340,13 +360,13 @@ jobs:
       - name: Run staging smoke tests
         run: |
           echo "Running staging smoke tests..."
-          
+
           # Test download endpoints
           echo "Testing download availability..."
-          
+
           # Test container deployment
           echo "Testing container deployment..."
-          
+
           echo "✓ Staging deployment successful"
 
   # Deploy to production
@@ -369,11 +389,11 @@ jobs:
       - name: Deploy to production infrastructure
         run: |
           echo "Deploying to production servers..."
-          
+
           # Blue-green deployment strategy
           for arch in x86-64 arm64 riscv64; do
             echo "Deploying $arch to production..."
-            
+
             # 1. Deploy to green environment
             # 2. Run health checks
             # 3. Switch traffic to green
@@ -383,7 +403,7 @@ jobs:
       - name: Update CDN and mirrors
         run: |
           echo "Updating CDN and mirror servers..."
-          
+
           # Update global CDN
           # Sync to mirror servers
           # Update download metadata
@@ -391,11 +411,11 @@ jobs:
       - name: Run production validation
         run: |
           echo "Running production validation..."
-          
+
           # End-to-end tests
           # Performance validation
           # Security checks
-          
+
           echo "✓ Production deployment successful"
 
   # Create GitHub release
@@ -416,53 +436,53 @@ jobs:
       - name: Generate release notes
         run: |
           version="${{ needs.pre-deployment-validation.outputs.version }}"
-          
+
           cat > release-notes.md << EOF
           # RaeenOS $version
-          
+
           ## What's New
           - Enhanced multi-platform support (x86-64, ARM64, RISC-V)
           - Improved hardware compatibility
           - Performance optimizations
           - Security enhancements
-          
+
           ## System Requirements
           - **Minimum RAM**: 512 MB
           - **Minimum Storage**: 2 GB
           - **Supported Architectures**: x86-64, ARM64, RISC-V
-          
+
           ## Download
           Choose the appropriate image for your architecture:
-          
+
           ### x86-64 (Intel/AMD)
           - [RaeenOS x86-64 ISO](raeenos-x86-64-$version.iso)
           - [RaeenOS x86-64 Image](raeenos-x86-64-$version.bin)
-          
+
           ### ARM64
           - [RaeenOS ARM64 ISO](raeenos-arm64-$version.iso)
           - [RaeenOS ARM64 Image](raeenos-arm64-$version.bin)
-          
+
           ### RISC-V
           - [RaeenOS RISC-V Image](raeenos-riscv64-$version.bin)
-          
+
           ## Verification
           Verify your downloads using the provided checksums:
           - [Checksums x86-64](checksums-x86-64.sha256)
           - [Checksums ARM64](checksums-arm64.sha256)
           - [Checksums RISC-V](checksums-riscv64.sha256)
-          
+
           ## Container Images
           RaeenOS is also available as container images:
           \`\`\`bash
           docker run -p 8080:8080 -p 5900:5900 ghcr.io/${{ github.repository }}:$version
           \`\`\`
-          
+
           ## Installation Guide
           See our [Installation Guide](docs/installation.md) for detailed instructions.
-          
+
           ## Changelog
           $(git log --oneline --since="30 days ago" | head -20)
-          
+
           ---
           **Build Information**
           - Build ID: ${{ github.sha }}
@@ -484,10 +504,10 @@ jobs:
       - name: Upload release assets
         run: |
           version="${{ needs.pre-deployment-validation.outputs.version }}"
-          
+
           # In a real implementation, this would upload all build artifacts
           # to the GitHub release using the GitHub CLI or API
-          
+
           echo "Release assets would be uploaded here"
           echo "- ISO images for all architectures"
           echo "- Binary images"
@@ -504,45 +524,45 @@ jobs:
       - name: Setup monitoring alerts
         run: |
           echo "=== Setting up post-deployment monitoring ==="
-          
+
           deployment_type="${{ needs.pre-deployment-validation.outputs.deployment-type }}"
           version="${{ needs.pre-deployment-validation.outputs.version }}"
-          
+
           echo "Deployment type: $deployment_type"
           echo "Version: $version"
 
       - name: Monitor deployment health
         run: |
           echo "Monitoring deployment health..."
-          
+
           # Monitor key metrics:
           # - Download success rates
           # - Server response times
           # - Error rates
           # - User feedback
-          
+
           for i in {1..5}; do
             echo "Health check $i/5..."
-            
+
             # Check download endpoints
             # Check server status
             # Check container registry
-            
+
             sleep 30
           done
-          
+
           echo "✓ Deployment health monitoring complete"
 
       - name: Send deployment notifications
         run: |
           echo "Sending deployment notifications..."
-          
+
           # Notifications would be sent to:
           # - Development team
           # - QA team
           # - Operations team
           # - Community (for public releases)
-          
+
           cat > notification.json << EOF
           {
             "deployment": {
@@ -560,7 +580,7 @@ jobs:
             }
           }
           EOF
-          
+
           echo "Deployment notification sent"
 
   # Deployment rollback (manual trigger)
@@ -572,11 +592,11 @@ jobs:
       - name: Initiate rollback procedure
         run: |
           echo "=== INITIATING DEPLOYMENT ROLLBACK ==="
-          
+
           # 1. Switch traffic back to previous version
           # 2. Restore previous container images
           # 3. Update CDN and mirrors
           # 4. Notify teams of rollback
-          
+
           echo "Rollback procedure would be executed here"
           echo "This is a critical safety mechanism for production deployments"

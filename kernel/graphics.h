@@ -3,11 +3,10 @@
 
 #include <stdint.h>
 
-// Forward declaration for multiboot info
-struct multiboot_info_t;
+#include "include/multiboot.h"
 
 // Graphics initialization
-int graphics_init(struct multiboot_info_t* mboot_info);
+int graphics_init(multiboot_info_t* mboot_info);
 
 // Basic drawing functions
 void graphics_put_pixel(uint32_t x, uint32_t y, uint32_t color);

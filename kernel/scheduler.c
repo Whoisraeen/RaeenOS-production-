@@ -21,7 +21,7 @@
 #include "process/process.h"
 #include "vga.h"
 #include "memory.h"
-#include "string.h"
+#include "../libs/libc/include/string.h"
 #include "timer.h"
 
 // Global scheduler state
@@ -793,13 +793,13 @@ void sched_print_stats(void) {
     char buffer[128];
     
     // System-wide stats
-    sprintf(buffer, "Total Context Switches: %llu\n", g_scheduler.total_context_switches);
+    string_format(buffer, sizeof(buffer), "Total Context Switches: %llu\n", g_scheduler.total_context_switches);
     vga_puts(buffer);
     
-    sprintf(buffer, "Scheduler Invocations: %llu\n", g_scheduler.scheduler_invocations);
+    string_format(buffer, sizeof(buffer), "Scheduler Invocations: %llu\n", g_scheduler.scheduler_invocations);
     vga_puts(buffer);
     
-    sprintf(buffer, "Active Processes: %u\n", g_scheduler.current_process_count);
+    string_format(buffer, sizeof(buffer), "Active Processes: %u\n", g_scheduler.current_process_count);
     vga_puts(buffer);
     
     // Per-class statistics
@@ -808,7 +808,7 @@ void sched_print_stats(void) {
     };
     
     for (int i = 0; i < SCHED_CLASS_MAX; i++) {
-        sprintf(buffer, "%s: %u processes, %llu ns runtime\n",
+        string_format(buffer, sizeof(buffer), "%s: %u processes, %llu ns runtime\n",
                 class_names[i],
                 g_sched_stats.class_stats[i].active_processes,
                 g_sched_stats.class_stats[i].total_runtime_ns);
@@ -816,20 +816,14 @@ void sched_print_stats(void) {
     }
     
     // Real-time stats
-    sprintf(buffer, "RT Deadline Misses: %u\n", g_sched_stats.rt_stats.deadline_misses);
+    string_format(buffer, sizeof(buffer), "RT Deadline Misses: %u\n", g_sched_stats.rt_stats.deadline_misses);
     vga_puts(buffer);
     
     // Load balancing stats
-    sprintf(buffer, "Migrations/sec: %u\n", 
+    string_format(buffer, sizeof(buffer), "Migrations/sec: %u\n", 
             g_sched_stats.load_balance_stats.migrations_per_second);
     vga_puts(buffer);
     
     vga_puts("=== End Statistics ===\n");
 }
 
-// Simple sprintf implementation for statistics
-static int sprintf(char* buffer, const char* format, ...) {
-    // This is a very basic implementation for demonstration
-    // A production system would use a full printf implementation
-    return 0;
-}

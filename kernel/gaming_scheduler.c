@@ -232,7 +232,7 @@ void gaming_mode_configure(const gaming_config_t* config) {
     g_gaming_scheduler.global_frame_period_ns = calculate_frame_budget(config->frame_rate_target);
     g_gaming_scheduler.gaming_cpu_mask = config->gaming_cpu_mask;
     
-    spin_unlock_irqrestore(&g_gaming_scheduler.lock, &flags);
+    spin_unlock_irqrestore(&g_gaming_scheduler.lock, flags);
     
     vga_puts("Gaming Mode configured with custom parameters\n");
 }

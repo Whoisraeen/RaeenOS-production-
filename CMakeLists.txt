@@ -7,7 +7,7 @@ enable_language(ASM_NASM)
 set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_PROCESSOR x86_64)
 
-set(CMAKE_C_FLAGS "-ffreestanding -O2 -Wall -Wextra -I${CMAKE_SOURCE_DIR}/kernel/include -I${CMAKE_SOURCE_DIR}/libs/libc/include")
+set(CMAKE_C_FLAGS "-O2 -Wall /W4 -I${CMAKE_SOURCE_DIR}/kernel/include -I${CMAKE_SOURCE_DIR}/libs/libc/include")
 set(CMAKE_ASM_NASM_FLAGS "-f elf64 -g")
 
 file(GLOB_RECURSE KERNEL_SOURCES
@@ -86,6 +86,7 @@ set(SOURCES ${KERNEL_SOURCES} ${SECURITY_SOURCES} ${PRODUCTION_SOURCES}
 )
 
 add_executable(raeenos.elf ${SOURCES})
+target_compile_options(raeenos.elf PRIVATE -ffreestanding)
 
 # Add security include directory
 target_include_directories(raeenos.elf PRIVATE ${CMAKE_SOURCE_DIR}/security)

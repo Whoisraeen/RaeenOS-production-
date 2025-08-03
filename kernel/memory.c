@@ -3,9 +3,9 @@
 #include "memory.h"
 #include "pmm.h"
 #include "paging.h"
-#include "sync.h" // For spinlock
+#include "include/sync.h" // For spinlock
 #include "../libs/libc/include/string.h" // For memset
-#include "../vga.h"
+#include "vga.h"
 
 // A block of memory in the heap
 typedef struct heap_block {

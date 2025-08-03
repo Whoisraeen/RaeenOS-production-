@@ -29,4 +29,7 @@ const theme_colors_t* theme_get_colors(void);
 // Set the theme mode (e.g., "light" or "dark")
 void theme_set_mode(const char* mode);
 
+// Apply glass effect to a window area (stub for now)
+void theme_apply_glass_effect(uint32_t x, uint32_t y, uint32_t width, uint32_t height);
+
 #endif // THEME_H

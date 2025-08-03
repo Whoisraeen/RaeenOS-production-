@@ -5,7 +5,7 @@
 // ACPI driver structure
 static driver_t acpi_driver = {
     .name = "ACPI Driver",
-    .init = acpi_init,
+    .init = (driver_init_t)acpi_init,
     .probe = NULL // ACPI is not a bus driver
 };
 

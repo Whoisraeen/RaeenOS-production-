@@ -1,6 +1,6 @@
 #include "pci.h"
-#include "../../kernel/io.h"
-#include "../../kernel/vga.h"
+#include "../kernel/ports.h"
+#include "../kernel/vga.h"
 
 // Read a 32-bit value from PCI configuration space
 uint32_t pci_read_config_dword(uint8_t bus, uint8_t device, uint8_t function, uint8_t offset) {

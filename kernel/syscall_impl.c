@@ -37,29 +37,29 @@ static void* syscall_routines[] = {
 // The main system call handler, called from the interrupt handler.
 void syscall_dispatcher(struct registers_t* regs) {
     // Check if the syscall number is valid
-    if (regs->eax >= sizeof(syscall_routines) / sizeof(void*)) {
-        regs->eax = -ENOSYS; // Invalid syscall
+    if (regs->rax >= sizeof(syscall_routines) / sizeof(void*)) {
+        regs->rax = -ENOSYS; // Invalid syscall
         return;
     }
 
     // Get the handler function from the table
-    void* handler = syscall_routines[regs->eax];
+    void* handler = syscall_routines[regs->rax];
 
     if (handler) {
-        // The syscall ABI: eax = num, ebx, ecx, edx are args.
+        // The syscall ABI: rax = num, rbx, rcx, rdx are args.
         // We need a way to pass the full register state to handlers that need it (fork, exec).
         // For now, we cast based on the known signature.
         // A more advanced ABI would use a single struct pointer.
 
         int ret;
-        if (regs->eax == SYS_FORK || regs->eax == SYS_EXEC) {
+        if (regs->rax == SYS_FORK || regs->rax == SYS_EXEC) {
             // These handlers need the full register frame
             ret = ((int (*)(struct registers_t*))handler)(regs);
         } else {
             // Standard handlers
-            ret = ((int (*)())handler)(regs->ebx, regs->ecx, regs->edx);
+            ret = ((int (*)())handler)(regs->rbx, regs->rcx, regs->rdx);
         }
-        regs->eax = ret;
+        regs->rax = ret;
     }
 }
 
@@ -151,7 +151,7 @@ int sys_fork(struct registers_t* regs) {
     memcpy(child_regs, regs, sizeof(struct registers_t));
 
     // Set the return value for the child process to 0
-    child_regs->eax = 0;
+    child_regs->rax = 0;
 
     // Set the child's ESP to point to the copied registers
     child->esp = (uintptr_t)child_regs;
@@ -168,8 +168,8 @@ int sys_fork(struct registers_t* regs) {
 
 int sys_exec(struct registers_t* regs) {
     // Extract arguments from parent's registers
-    const char* path = (const char*)regs->ebx;
-    const char* const* argv = (const char* const*)regs->ecx;
+    const char* path = (const char*)regs->rbx;
+    const char* const* argv = (const char* const*)regs->rcx;
 
     // TODO: Safely read path and argv from user space
     // For now, assume the path and argv are valid kernel addresses
@@ -200,11 +200,10 @@ int sys_exec(struct registers_t* regs) {
     uintptr_t user_stack_ptr = USER_STACK_TOP - sizeof(uintptr_t);
 
     // Modify the interrupt frame to start the new program
-    regs->eip = entry_point;
-    regs->useresp = user_stack_ptr;
+    regs->rip = entry_point;
     
     // Reset the stack pointer for user mode
-    regs->esp = user_stack_ptr;
+    regs->rsp = user_stack_ptr;
 
     // exec does not return on success - the return value is irrelevant
     // as the process will start executing at the new entry point

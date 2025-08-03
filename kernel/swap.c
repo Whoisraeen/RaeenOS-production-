@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include "swap.h"
 #include "vga.h"
 #include "pmm.h"
@@ -7,6 +8,7 @@
 // For now, a very simplistic swap space on the first ATA drive
 #define SWAP_START_LBA 1024 // Start after bootloader/kernel
 #define SWAP_SIZE_SECTORS 1024 // 512KB swap space (1024 sectors * 512 bytes/sector)
+#define ATA_MASTER 0 // Master drive
 
 void swap_init(void) {
     vga_puts("Swap initialized (placeholder).\n");
@@ -18,7 +20,7 @@ bool swap_out_page(uint32_t physical_address) {
     uint32_t swap_sector = SWAP_START_LBA; 
 
     // Read the page into a buffer
-    uint16_t* buffer = (uint16_t*)physical_address;
+    uint8_t* buffer = (uint8_t*)physical_address;
 
     // Write the buffer to the swap sector
     if (ata_write_sectors(ATA_MASTER, swap_sector, 1, buffer) != 0) {
@@ -46,7 +48,7 @@ bool swap_in_page(uint32_t physical_address) {
     }
 
     // Read the swap sector into the new frame
-    if (ata_read_sectors(ATA_MASTER, swap_sector, 1, (uint16_t*)new_frame) != 0) {
+    if (ata_read_sectors(ATA_MASTER, swap_sector, 1, (uint8_t*)new_frame) != 0) {
         vga_puts("Swap in failed!\n");
         pmm_free_frame(new_frame);
         return false;

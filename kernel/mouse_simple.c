@@ -1,5 +1,6 @@
 // Simple PS/2 Mouse Driver for RaeenUI prototype - RaeenOS
 
+#include <stdbool.h>
 #include "mouse_simple.h"
 #include "vga.h"
 #include "ports.h"

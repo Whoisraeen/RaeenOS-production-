@@ -48,8 +48,7 @@ static bool capslock_active = false;
  * It reads the scancode from the keyboard data port and, if it's a valid
  * key press, adds the corresponding ASCII character to the circular buffer.
  */
-static void keyboard_handler(struct registers_t* regs) {
-    (void)regs; // The keyboard handler does not need to inspect registers.
+void keyboard_handler(void) {
     uint8_t scancode = inb(KBD_DATA_PORT);
 
     if (scancode & 0x80) { // Key release

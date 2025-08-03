@@ -29,5 +29,6 @@ char* string_find_last(char* str, char c);
 bool string_ends_with(const char* str, const char* suffix);
 char* string_duplicate(const char* str);
 void string_format(char* dest, size_t dest_size, const char* format, ...);
+void uint64_to_string(uint64_t value, char* buffer, size_t buffer_size);
 
 #endif // KERNEL_STRING_H

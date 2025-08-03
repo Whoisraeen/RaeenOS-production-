@@ -4,6 +4,7 @@
 #define VGA_H
 
 #include "include/types.h"
+#include <stdbool.h>
 
 // VGA Color constants for enhanced UI
 typedef enum {
@@ -23,6 +24,7 @@ typedef enum {
     VGA_COLOR_LIGHT_MAGENTA = 13,
     VGA_COLOR_LIGHT_BROWN = 14,
     VGA_COLOR_WHITE = 15,
+    VGA_COLOR_YELLOW = 14,  // Alias for LIGHT_BROWN
 } vga_color;
 
 // Enhanced VGA functions for RaeenUI
@@ -40,7 +42,7 @@ void debug_print(const char* str);
 
 // Advanced VGA functions for UI components
 void vga_set_cursor_position(size_t x, size_t y);
-void vga_get_cursor_position(size_t* x, size_t y);
+void vga_get_cursor_position(size_t* x, size_t* y);
 void vga_draw_box(size_t x, size_t y, size_t width, size_t height, vga_color fg, vga_color bg);
 void vga_draw_horizontal_line(size_t x, size_t y, size_t length, char ch, vga_color fg, vga_color bg);
 void vga_draw_vertical_line(size_t x, size_t y, size_t length, char ch, vga_color fg, vga_color bg);

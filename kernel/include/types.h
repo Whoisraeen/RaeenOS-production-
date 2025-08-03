@@ -93,27 +93,10 @@ typedef int64_t ssize_t;
 typedef int32_t ssize_t;
 #endif
 #endif
-#ifndef _PTRDIFF_T
-#ifndef __PTRDIFF_T
-#ifdef __LP64__
-typedef int64_t ptrdiff_t;
-#else
-typedef int32_t ptrdiff_t;
-#endif
-#endif
-#endif
+
 
 // Pointer-sized integer - use standard if available
-#ifndef _UINTPTR_T_DEFINED
-#ifndef __uintptr_t_defined
-#ifdef __LP64__
-typedef unsigned long uintptr_t;
-#else
-typedef uint32_t uintptr_t;
-#endif
-#define __uintptr_t_defined
-#endif
-#endif
+
 
 // Boolean type  
 #ifndef __cplusplus
@@ -181,12 +164,14 @@ typedef uint32_t mode_t;   // File mode/permissions
 #define NR_CPUS 8
 
 // Memory map entry structure (from multiboot)
+#pragma pack(push, 1)
 typedef struct mmap_entry {
     uint32_t size;
     uint64_t addr;
     uint64_t len;
     uint32_t type;
-} __attribute__((packed)) mmap_entry_t;
+} mmap_entry_t;
+#pragma pack(pop)
 
 // Filesystem statistics structure
 struct statfs {

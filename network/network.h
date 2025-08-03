@@ -1,7 +1,7 @@
 #ifndef NETWORK_H
 #define NETWORK_H
 
-#include "../../kernel/include/types.h"
+#include "../kernel/include/types.h"
 
 // Network packet structure (simplified)
 typedef struct {

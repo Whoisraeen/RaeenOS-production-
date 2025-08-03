@@ -2,7 +2,7 @@
 #define PCI_DRIVER_H
 
 #include <stdint.h>
-#include "../../kernel/include/driver.h"
+#include "../kernel/include/driver.h"
 #include "pci.h"  // Use the main PCI header for pci_device_t definition
 
 // Function to initialize the PCI bus driver

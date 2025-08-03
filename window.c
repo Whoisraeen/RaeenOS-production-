@@ -3,6 +3,7 @@
 #include "window.h"
 #include "graphics.h"
 #include "pmm.h"
+#include "pmm_production.h"
 #include "mouse.h"
 #include "ui/widget.h"
 #include "font.h"
@@ -10,6 +11,9 @@
 #include "ui/theme.h" // Include theme header
 #include <stdbool.h>
 #include <stddef.h>
+
+// Forward declaration for production PMM function
+extern void* pmm_alloc_pages(unsigned int order, unsigned int flags, int node);
 
 // Head of the window linked list
 static window_t* window_list_head = NULL;

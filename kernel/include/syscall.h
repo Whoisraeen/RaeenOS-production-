@@ -5,8 +5,9 @@
 #ifndef SYSCALL_H
 #define SYSCALL_H
 
-#include "../idt.h" // For registers_t struct
+#include "../process/process.h" // For registers_t struct
 #include "types.h"  // For uint64_t, size_t, bool, etc.
+#include <stdbool.h>
 
 // System Call Numbers
 enum syscall_num {

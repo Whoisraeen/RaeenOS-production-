@@ -7,6 +7,11 @@
 #include "include/multiboot.h" // Include multiboot header
 // Using types.h instead of stddef.h for kernel build
 
+// Local abs function to avoid including stdlib.h
+static inline int abs(int x) {
+    return x < 0 ? -x : x;
+}
+
 // Framebuffer properties - to be populated by the bootloader info
 static uint32_t* framebuffer_addr = NULL;
 static uint32_t* back_buffer_addr = NULL;
@@ -102,7 +107,7 @@ void graphics_draw_rect(uint32_t x, uint32_t y, uint32_t width, uint32_t height,
 /**
  * @brief Draws a line on the back buffer using Bresenham's line algorithm.
  */
-void graphics_draw_line(uint33_t x0, uint33_t y0, uint33_t x1, uint33_t y1, uint32_t color) {
+void graphics_draw_line(uint32_t x0, uint32_t y0, uint32_t x1, uint32_t y1, uint32_t color) {
     int dx = abs((int)x1 - (int)x0);
     int sx = x0 < x1 ? 1 : -1;
     int dy = abs((int)y1 - (int)y0);

@@ -228,3 +228,32 @@ void string_format(char* dest, size_t dest_size, const char* format, ...) {
     }
     *dst = '\0';
 }
+
+// uint64_to_string - convert uint64_t to string
+void uint64_to_string(uint64_t value, char* buffer, size_t buffer_size) {
+    if (!buffer || buffer_size == 0) return;
+    
+    if (value == 0) {
+        if (buffer_size >= 2) {
+            buffer[0] = '0';
+            buffer[1] = '\0';
+        }
+        return;
+    }
+    
+    char temp[32];
+    int pos = 0;
+    
+    // Convert to string in reverse
+    while (value > 0 && pos < 31) {
+        temp[pos++] = (value % 10) + '0';
+        value /= 10;
+    }
+    
+    // Reverse the string into buffer
+    int i = 0;
+    while (pos > 0 && i < (int)(buffer_size - 1)) {
+        buffer[i++] = temp[--pos];
+    }
+    buffer[i] = '\0';
+}

@@ -1,0 +1,4 @@
+D:/RaeenOS/build_cmake/CMakeFiles/raeenos.elf.dir
+D:/RaeenOS/build_cmake/CMakeFiles/raeshell.dir
+D:/RaeenOS/build_cmake/CMakeFiles/ALL_BUILD.dir
+D:/RaeenOS/build_cmake/CMakeFiles/ZERO_CHECK.dir

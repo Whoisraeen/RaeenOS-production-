@@ -1,0 +1,10 @@
+^D:\RAEENOS\BUILD_CMAKE\CMAKEFILES\8C6DAFEB960791BB9C06EA425B71E3E7\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SD:/RaeenOS -BD:/RaeenOS/build_cmake --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file D:/RaeenOS/build_cmake/RaeenOS.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
